@@ -1,0 +1,109 @@
+{
+  "COMMANDS": [
+    {
+      "label": "change to self camera",
+      "min_point": {
+        "x": 858,
+        "y": 1985
+      },
+      "max_point": {
+        "x": 931,
+        "y": 2047
+      },
+      "centroid": {
+        "x": 894,
+        "y": 2016
+      }
+    },
+    {
+      "label": "take picture",
+      "min_point": {
+        "x": 441,
+        "y": 1918
+      },
+      "max_point": {
+        "x": 639,
+        "y": 2116
+      },
+      "centroid": {
+        "x": 540,
+        "y": 2017
+      }
+    },
+    {
+      "label": "portrait",
+      "min_point": {
+        "x": 206,
+        "y": 1797
+      },
+      "max_point": {
+        "x": 355,
+        "y": 1822
+      },
+      "centroid": {
+        "x": 280,
+        "y": 1809
+      }
+    },
+    {
+      "label": "photo",
+      "min_point": {
+        "x": 475,
+        "y": 1794
+      },
+      "max_point": {
+        "x": 606,
+        "y": 1824
+      },
+      "centroid": {
+        "x": 540,
+        "y": 1809
+      }
+    },
+    {
+      "label": "zoom 1.0",
+      "min_point": {
+        "x": 521,
+        "y": 1593
+      },
+      "max_point": {
+        "x": 562,
+        "y": 1619
+      },
+      "centroid": {
+        "x": 541,
+        "y": 1606
+      }
+    },
+    {
+      "label": "flash menu",
+      "min_point": {
+        "x": 226,
+        "y": 155
+      },
+      "max_point": {
+        "x": 266,
+        "y": 207
+      },
+      "centroid": {
+        "x": 246,
+        "y": 181
+      }
+    },
+    {
+      "label": "ascpect_ratio menu",
+      "min_point": {
+        "x": 510,
+        "y": 166
+      },
+      "max_point": {
+        "x": 570,
+        "y": 196
+      },
+      "centroid": {
+        "x": 540,
+        "y": 181
+      }
+    }
+  ]
+}
