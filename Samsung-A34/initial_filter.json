@@ -13,9 +13,7 @@
       "COMMAND_SEQUENCE ON": [
         "CLICK_ACTION"
       ],
-      "COMMAND_SEQUENCE OFF": [
-        "CLICK_ACTION"
-      ],
+      "COMMAND_SEQUENCE OFF": [],
       "COMMAND_SLEEPS": {}
     },
     "ASPECT_RATIO": {
@@ -51,15 +49,20 @@
       "COMMAND_SLEEPS": {}
     },
     "TOUCH": {
-      "COMMAND_SEQUENCE ON": [],
-      "COMMAND_SEQUENCE OFF": [],
-      "COMMAND_SLEEPS": {}
-    },
-    "ZOOM": {
-      "COMMAND_SEQUENCE ON": [],
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION"
+      ],
       "COMMAND_SEQUENCE OFF": [
         "CLICK_ACTION"
       ],
+      "COMMAND_SLEEPS": {}
+    },
+    "ZOOM": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION",
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [],
       "COMMAND_SLEEPS": {}
     }
   },
@@ -98,6 +101,17 @@
       }
     },
     {
+      "command_name": "zoom 0.5",
+      "click_by_coordinates": {
+        "start_x": 454,
+        "start_y": 1608
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
       "command_name": "zoom 1.0",
       "click_by_coordinates": {
         "start_x": 541,
@@ -128,6 +142,17 @@
       "requirements": {
         "cam": "main",
         "mode": "photo"
+      }
+    },
+    {
+      "command_name": "touch",
+      "click_by_coordinates": {
+        "start_x": 540,
+        "start_y": 1170
+      },
+      "requirements": {
+        "cam": "main,selfie",
+        "mode": "photo,portrait"
       }
     }
   ]

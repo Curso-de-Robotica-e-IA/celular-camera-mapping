@@ -274,13 +274,18 @@ def processed_base_detection_in_home_screen_step_by_step(
     return result_mapping
 
 
-def write_output_in_json(labeled_icons, file_name):
+def write_output_in_json(labeled_icons, path_dir, file_name):
     # Serializing json
     json_object = json.dumps(labeled_icons, indent=2)
 
     # Writing to sample.json
-    with open(f"{file_name}.json", "w") as outfile:
+    with open(f"{path_dir}//{file_name}.json", "w") as outfile:
         outfile.write(json_object)
+
+
+def load_labeled_icons(path_dir, file_name):
+    with open(f"{path_dir}//{file_name}.json", "r") as file:
+        return dict(json.load(file))
 
 
 def show_image_in_thread(name, image):
@@ -299,10 +304,150 @@ def show_image_in_thread(name, image):
     show_thread.start()
 
 
+def start_record_in_device(ip_port, record_time_s):
+    subprocess.run(
+        [
+            "adb",
+            "-s",
+            ip_port,
+            "screenrecord",
+            f"--time-limit={record_time_s}",
+            "/sdcard/video.mp4",
+        ]
+    )
+
+
+def get_video_in_device(base_path, ip_port, folder_name):
+    full_path = f"{base_path}\\{folder_name}"
+    if os.path.exists(full_path):
+        os.rmdir(full_path)
+
+    os.mkdir(full_path)
+
+    subprocess.run(
+        [
+            "adb",
+            "-s",
+            ip_port,
+            "screenrecord",
+            "/sdcard/video.mp4",
+            f"{full_path}\\video.mp4",
+        ]
+    )
+
+
+def delete_video_in_device(ip_port):
+    subprocess.run(["adb", "-s", ip_port, "shell", "rm", "/sdcard/video.mp4"])
+
+
+def split_frames(base_path, folder_name):
+    full_path = f"{base_path}\\{folder_name}"
+
+    vidObj = cv2.VideoCapture(
+        f"{full_path}\\video.mp4",
+    )
+
+    count = 0
+    success = 1
+
+    out_full_path = f"{base_path}\\{folder_name}\\frames"
+    if os.path.exists(out_full_path):
+        os.rmdir(out_full_path)
+
+    os.mkdir(out_full_path)
+
+    while success:
+        # vidObj object calls read
+        # function extract frames
+        success, image = vidObj.read()
+        # Saves the frames with frame-count
+        if success:
+            cv2.imwrite(f"{out_full_path}\\frame_{count}.png", image)
+            count += 1
+
+
+def touch_mapping(labeled_icons, ip_port):
+    result = subprocess.run(
+        f"adb -s {ip_port} shell wm size",
+        capture_output=True,
+        text=True,
+    )
+    dimensions = result.stdout.strip()
+    pattern = r"(\d+)x(\d+)"
+    match = re.search(pattern, dimensions)
+    if match:
+        width, height = match.groups()
+        width = int(width)
+        height = int(height)
+
+        command = {}
+        command["command_name"] = "touch"
+        command["click_by_coordinates"] = {
+            "start_x": width // 2,
+            "start_y": height // 2,
+        }
+
+        command["requirements"] = {"cam": "main,selfie", "mode": "photo,portrait"}
+        labeled_icons["COMMANDS"].append(command)
+        labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SEQUENCE ON"].append(
+            "CLICK_ACTION"
+        )
+
+        labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"][
+            "COMMAND_SEQUENCE OFF"
+        ].append("CLICK_ACTION")
+
+
+def connect_device(ip_port):
+    subprocess.run(["adb", "connect", ip_port], capture_output=True, text=True)
+
+
+def get_screen_image(ip_port, path, tag):
+
+    subprocess.run(
+        [
+            "adb",
+            "-s",
+            ip_port,
+            "pull",
+            f"/sdcard/DCIM/Camera/screencap.png",
+            f"{path}\\screencap_{tag}.png",
+        ]
+    )
+
+
+def screen_shot(ip_port):
+    subprocess.run(
+        [
+            "adb",
+            "-s",
+            ip_port,
+            "shell",
+            "screencap",
+            "-p",
+            "/sdcard/DCIM/Camera/screencap.png",
+        ]
+    )
+
+
+def capture_open_menu_show(labeled_icons):
+    for command in labeled_icons["COMMANDS"]:
+        if command[""]:
+
+
 if __name__ == "__main__":
-    ip_port = "192.168.158.232:39367"
-    image = cv2.imread("screencap.png")
+    current_step = 2
+
+    device_target = "Samsung-A34"
+    subprocess.run("adb start-server")
+
+    ip_port = "192.168.155.1:38005"
+    connect_device(ip_port)
+
     path_to_base_folder = os.getcwd()
+
+    device_target_dir = f"{path_to_base_folder}\\{device_target}"
+
     size_in_screen = 800
 
     mapping_requirements = {
@@ -344,14 +489,36 @@ if __name__ == "__main__":
     current_cam = "main"
     current_mode = "photo"
 
-    detect_boxes_from_contours = find_contours_in_image(image)
-    show_clickable_itens(image, detect_boxes_from_contours, size_in_screen)
-    labeled_icons = processed_base_detection_in_home_screen_step_by_step(
-        image,
-        detect_boxes_from_contours,
-        size_in_screen,
-        mapping_requirements,
-        current_cam,
-        current_mode,
-    )
-    write_output_in_json(labeled_icons, "initial_filter")
+    labeled_icons = None
+
+    if current_step == 1:
+        if os.path.exists(device_target_dir):
+            os.rmdir(device_target_dir)
+
+        os.mkdir(device_target_dir)
+
+        screen_shot(ip_port)
+        get_screen_image(ip_port, device_target_dir, "initial")
+
+        image = cv2.imread(f"{device_target_dir}\\screencap_initial.png")
+
+        detect_boxes_from_contours = find_contours_in_image(image)
+        show_clickable_itens(image, detect_boxes_from_contours, size_in_screen)
+        labeled_icons = processed_base_detection_in_home_screen_step_by_step(
+            image,
+            detect_boxes_from_contours,
+            size_in_screen,
+            mapping_requirements,
+            current_cam,
+            current_mode,
+        )
+
+        touch_mapping(labeled_icons, ip_port)
+        write_output_in_json(labeled_icons, device_target_dir, "initial_filter")
+        current_step += 1
+
+    if current_step == 2:
+        if labeled_icons is None:
+            labeled_icons = load_labeled_icons(device_target_dir, "initial_filter")
+
+        capture_open_menu_show(labeled_icons)
