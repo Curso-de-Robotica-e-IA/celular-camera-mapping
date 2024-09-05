@@ -10,6 +10,11 @@ import re
 from dataclasses import dataclass
 from threading import Thread
 import numpy as np
+from SSIM_PIL import compare_ssim
+from PIL import Image
+import glob
+import matplotlib.pyplot as plt
+from sewar.full_ref import mse
 
 
 @dataclass(unsafe_hash=True)
@@ -460,8 +465,255 @@ def capture_open_menu_show(ip_port, device_target_dir, labeled_icons):
             split_frames(device_target_dir, command["command_name"])
 
 
+def compare_frames(device_target_dir, command_name):
+
+    frame_compare = []
+
+    file_images_list = glob.glob(f"{device_target_dir}\\{command_name}\\frames\\*.png")
+
+    def sort_by_number(file_name):
+        return int(file_name.split("\\")[-1].split(".")[0].split("_")[-1])
+
+    file_images_list = sorted(file_images_list, key=sort_by_number)
+
+    if len(file_images_list) > 1:
+        base_image = cv2.imread(file_images_list[0])
+
+    for i in range(1, len(file_images_list)):
+        new_image = cv2.imread(file_images_list[i])
+
+        frame_compare.append(mse(base_image, new_image))
+
+        base_image = new_image
+
+    return frame_compare
+
+
+def calculate_moving_average(frame_compare, window_size):
+    i = 0
+    # Initialize an empty list to store moving averages
+    moving_averages = []
+
+    # Loop through the array to consider
+    # every window of size 3
+    lst_val = None
+    while i < len(frame_compare) - window_size + 1:
+
+        # Store elements from i to i+window_size
+        # in list to get the current window
+        window = frame_compare[i : i + window_size]
+
+        # Calculate the average of current window
+        window_average = round(sum(window) / window_size, 2)
+
+        # Store the average of current
+        # window in moving average list
+        moving_averages.append(window_average)
+        lst_val = window_average
+        # Shift window to right by one position
+        i += 1
+
+    for i in range(window_size):
+        moving_averages.append(lst_val)
+
+    return moving_averages
+
+
+def calculate_threshold_for_frames(frame_compare):
+    return sum(frame_compare) / len(frame_compare)
+
+
+def calculate_states(state_list):
+    lst_state = 0
+    start = None
+    animation_list = []
+
+    for i in range(len(state_list)):
+        if lst_state != state_list[i]:
+            print("change state of screen to", state_list[i], "in frame", i)
+
+        if start is None:
+            if lst_state == 0 and state_list[i] == 50:
+                start = i
+        else:
+            if lst_state == 50 and state_list[i] == 0:
+                animation_time = (i - start) / 30
+                if animation_time > 0.3:
+                    print("animation seconds:", animation_time)
+                    animation_list.append((start, i, animation_time))
+                    start = None
+
+        lst_state = state_list[i]
+
+    return animation_list
+
+
+def mapping_menu_options(
+    device_target_dir,
+    labeled_icons,
+    size_in_screen,
+    mapping_requirements,
+    current_cam,
+    current_mode,
+):
+    for command in labeled_icons["COMMANDS"]:
+        if "menu" in command["command_name"]:
+            frames_diff = compare_frames(device_target_dir, command["command_name"])
+            moving_avg = calculate_moving_average(frames_diff, 4)
+            state_list, threshold_ref_list = state_buffer(moving_avg, 3)
+
+            # plt.plot(frames_diff)
+            # plt.plot(moving_avg)
+            # plt.plot(state_list)
+            # plt.plot(threshold_ref_list)
+            # plt.show()
+
+            animations = calculate_states(state_list)[0]
+            print(command["command_name"], animations)
+
+            command_name_full = command["command_name"]
+            command_name_upper = command_name_full.split(" ")[0].upper()
+            labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_MENU"] = round(animations[2] * 1.1, 4)
+
+            opened_menu_frame_idx = (
+                animations[1] + (len(state_list) - 1 - animations[1]) // 2
+            )
+
+            opened_menu_img = cv2.imread(
+                f"{device_target_dir}\\{command_name_full}\\frames\\frame_{opened_menu_frame_idx}.png"
+            )
+
+            detect_boxes_from_contours = find_contours_in_image(opened_menu_img)
+            show_clickable_itens(
+                opened_menu_img, detect_boxes_from_contours, size_in_screen
+            )
+
+            labeled_icons = processed_base_detection_in_menu_screen_step_by_step(
+                opened_menu_img,
+                detect_boxes_from_contours,
+                size_in_screen,
+                labeled_icons,
+                mapping_requirements,
+                current_cam,
+                current_mode,
+            )
+
+
+def state_buffer(frame_compare, try_to_change):
+    state = 0
+    count = 0
+
+    state_list = []
+    threshold_ref_list = []
+
+    threshold = calculate_threshold_for_frames(frame_compare)
+
+    for elem in frame_compare:
+        if state == 0:
+            if elem > threshold:
+                count += 1
+            else:
+                count = 0
+
+            if count > try_to_change:
+                state = 1
+                count = 0
+        else:
+            if elem < threshold:
+                count += 1
+            else:
+                count = 0
+
+            if count > try_to_change:
+                state = 0
+                count = 0
+
+        state_list.append(state * 50)
+        threshold_ref_list.append(threshold)
+
+    return state_list, threshold_ref_list
+
+
+def processed_base_detection_in_menu_screen_step_by_step(
+    base_image,
+    detect_box,
+    size_in_screen,
+    labeled_icons,
+    command_to_mapping,
+    current_cam,
+    current_mode,
+):
+    scale = size_in_screen / base_image.shape[0]
+
+    for box in detect_box:
+        image = base_image.copy()
+
+        cv2.rectangle(
+            image,
+            box.min_point.to_tuple(),
+            box.max_point.to_tuple(),
+            color=(0, 0, 255),
+            thickness=2,
+        )
+        image = cv2.resize(image, (0, 0), fx=scale, fy=scale)
+        show_image_in_thread("Box icon", image)
+        label_name = (input("Is a valid item? (y/n)")).lower()
+        cv2.destroyAllWindows()
+
+        if "y" in label_name:
+            command = {}
+            print("Select the item type in list:\n")
+            for i, elem in enumerate(command_to_mapping["ITENS_TO_MAPPING"]):
+                print(f"[{i}] -", elem)
+
+            idx = int(input("Select index:\n"))
+
+            command_label = command_to_mapping["ITENS_TO_MAPPING"][idx]
+
+            print("Select the command action type in list:\n")
+            for i, elem in enumerate(command_to_mapping["COMMAND_ACTION_AVAILABLE"]):
+                print(f"[{i}] -", elem)
+
+            act_idx = int(input("Select index:\n"))
+
+            command_full_name = ""
+            if command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx] == "CLICK_MENU":
+                command_full_name = command_label.lower() + " menu"
+            elif command_label == "TAKE_PICTURE":
+                command_full_name = command_label.lower()
+            else:
+                command_value = input("Typing the command value:")
+                command_full_name = command_label.lower() + f" {command_value}"
+
+            command["command_name"] = command_full_name
+            command["click_by_coordinates"] = {
+                "start_x": box.centroid.x,
+                "start_y": box.centroid.y,
+            }
+
+            command["requirements"] = {"cam": current_cam, "mode": current_mode}
+
+            apply_to = input("Is applicable in cases? (on/off):\n")
+
+            for t in apply_to.split("/"):
+                value = f"COMMAND_SEQUENCE {(t.upper())}"
+                if not (
+                    command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
+                    in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value]
+                ):
+                    labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][
+                        value
+                    ].append(command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx])
+
+            labeled_icons["COMMANDS"].append(command)
+
+    return labeled_icons
+
+
 if __name__ == "__main__":
-    current_step = 2
+    current_step = 3
 
     device_target = "Samsung-A34"
     subprocess.run("adb start-server")
@@ -542,8 +794,23 @@ if __name__ == "__main__":
         write_output_in_json(labeled_icons, device_target_dir, "initial_filter")
         current_step += 1
 
-    if current_step == 2:
-        if labeled_icons is None:
-            labeled_icons = load_labeled_icons(device_target_dir, "initial_filter")
+    if labeled_icons is None:
+        labeled_icons = load_labeled_icons(device_target_dir, "initial_filter")
 
+    if current_step == 2:
         capture_open_menu_show(ip_port, device_target_dir, labeled_icons)
+        current_step += 1
+
+    if current_step == 3:
+        mapping_menu_options(
+            device_target_dir,
+            labeled_icons,
+            size_in_screen,
+            mapping_requirements,
+            current_cam,
+            current_mode,
+        )
+        write_output_in_json(
+            labeled_icons, device_target_dir, "initial_filter_with_menu"
+        )
+        current_step += 1
