@@ -1,7 +1,9 @@
 import json
 import math
 import os
+import shutil
 import subprocess
+from time import sleep
 import easyocr
 import cv2
 import re
@@ -305,22 +307,27 @@ def show_image_in_thread(name, image):
 
 
 def start_record_in_device(ip_port, record_time_s):
-    subprocess.run(
-        [
-            "adb",
-            "-s",
-            ip_port,
-            "screenrecord",
-            f"--time-limit={record_time_s}",
-            "/sdcard/video.mp4",
-        ]
-    )
+    def command_terminal(ip_port, record_time_s):
+        subprocess.run(
+            [
+                "adb",
+                "-s",
+                ip_port,
+                "shell",
+                "screenrecord",
+                "/sdcard/video.mp4",
+                f"--time-limit={record_time_s}",
+            ]
+        )
+
+    obj = Thread(target=command_terminal, args=[ip_port, record_time_s])
+    obj.start()
 
 
 def get_video_in_device(base_path, ip_port, folder_name):
     full_path = f"{base_path}\\{folder_name}"
     if os.path.exists(full_path):
-        os.rmdir(full_path)
+        shutil.rmtree(full_path)
 
     os.mkdir(full_path)
 
@@ -329,7 +336,7 @@ def get_video_in_device(base_path, ip_port, folder_name):
             "adb",
             "-s",
             ip_port,
-            "screenrecord",
+            "pull",
             "/sdcard/video.mp4",
             f"{full_path}\\video.mp4",
         ]
@@ -352,7 +359,7 @@ def split_frames(base_path, folder_name):
 
     out_full_path = f"{base_path}\\{folder_name}\\frames"
     if os.path.exists(out_full_path):
-        os.rmdir(out_full_path)
+        shutil.rmtree(out_full_path)
 
     os.mkdir(out_full_path)
 
@@ -430,9 +437,27 @@ def screen_shot(ip_port):
     )
 
 
-def capture_open_menu_show(labeled_icons):
+def click_by_coordinates_in_device(ip_port, command):
+    x = command["click_by_coordinates"]["start_x"]
+    y = command["click_by_coordinates"]["start_y"]
+
+    subprocess.run(
+        f"adb -s {ip_port} shell input swipe {x} {y} {x} {y}",
+        shell=True,
+    )
+
+
+def capture_open_menu_show(ip_port, device_target_dir, labeled_icons):
+    record_len_s = 5
     for command in labeled_icons["COMMANDS"]:
-        if command[""]:
+        if "menu" in command["command_name"]:
+
+            start_record_in_device(ip_port, record_len_s)
+            sleep(1)
+            click_by_coordinates_in_device(ip_port, command)
+            sleep(record_len_s * 1.1)
+            get_video_in_device(device_target_dir, ip_port, command["command_name"])
+            split_frames(device_target_dir, command["command_name"])
 
 
 if __name__ == "__main__":
@@ -441,7 +466,7 @@ if __name__ == "__main__":
     device_target = "Samsung-A34"
     subprocess.run("adb start-server")
 
-    ip_port = "192.168.155.1:38005"
+    ip_port = "192.168.155.1:36089"
     connect_device(ip_port)
 
     path_to_base_folder = os.getcwd()
@@ -493,7 +518,7 @@ if __name__ == "__main__":
 
     if current_step == 1:
         if os.path.exists(device_target_dir):
-            os.rmdir(device_target_dir)
+            shutil.rmtree(device_target_dir)
 
         os.mkdir(device_target_dir)
 
@@ -521,4 +546,4 @@ if __name__ == "__main__":
         if labeled_icons is None:
             labeled_icons = load_labeled_icons(device_target_dir, "initial_filter")
 
-        capture_open_menu_show(labeled_icons)
+        capture_open_menu_show(ip_port, device_target_dir, labeled_icons)
