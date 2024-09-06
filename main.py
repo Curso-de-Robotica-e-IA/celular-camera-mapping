@@ -378,6 +378,16 @@ def split_frames(base_path, folder_name):
             count += 1
 
 
+def get_fps_for_video(base_path, folder_name):
+    full_path = f"{base_path}\\{folder_name}"
+
+    vidObj = cv2.VideoCapture(
+        f"{full_path}\\video.mp4",
+    )
+
+    return vidObj.get(cv2.CAP_PROP_FPS)
+
+
 def touch_mapping(labeled_icons, ip_port):
     result = subprocess.run(
         f"adb -s {ip_port} shell wm size",
@@ -523,7 +533,7 @@ def calculate_threshold_for_frames(frame_compare):
     return sum(frame_compare) / len(frame_compare)
 
 
-def calculate_states(state_list):
+def calculate_states(state_list, fps_video):
     lst_state = 0
     start = None
     animation_list = []
@@ -537,7 +547,7 @@ def calculate_states(state_list):
                 start = i
         else:
             if lst_state == 50 and state_list[i] == 0:
-                animation_time = (i - start) / 30
+                animation_time = (i - start) / fps_video
                 if animation_time > 0.3:
                     print("animation seconds:", animation_time)
                     animation_list.append((start, i, animation_time))
@@ -568,7 +578,10 @@ def mapping_menu_options(
             # plt.plot(threshold_ref_list)
             # plt.show()
 
-            animations = calculate_states(state_list)[0]
+            animations = calculate_states(
+                state_list,
+                get_fps_for_video(device_target_dir, command["command_name"]),
+            )[0]
             print(command["command_name"], animations)
 
             command_name_full = command["command_name"]
@@ -580,6 +593,8 @@ def mapping_menu_options(
             opened_menu_frame_idx = (
                 animations[1] + (len(state_list) - 1 - animations[1]) // 2
             )
+
+            opened_menu_frame_idx = min(opened_menu_frame_idx, animations[1] + 5)
 
             opened_menu_img = cv2.imread(
                 f"{device_target_dir}\\{command_name_full}\\frames\\frame_{opened_menu_frame_idx}.png"
@@ -712,13 +727,16 @@ def processed_base_detection_in_menu_screen_step_by_step(
     return labeled_icons
 
 
+def mapping_time_menu_actions(): ...
+
+
 if __name__ == "__main__":
     current_step = 3
 
-    device_target = "Samsung-A34"
+    device_target = "Samsung-A04e"
     subprocess.run("adb start-server")
 
-    ip_port = "192.168.155.1:36089"
+    ip_port = "192.168.155.3:36779"
     connect_device(ip_port)
 
     path_to_base_folder = os.getcwd()
@@ -813,4 +831,8 @@ if __name__ == "__main__":
         write_output_in_json(
             labeled_icons, device_target_dir, "initial_filter_with_menu"
         )
+        current_step += 1
+
+    if current_step == 4:
+
         current_step += 1
