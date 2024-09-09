@@ -473,6 +473,8 @@ def capture_open_menu_show(ip_port, device_target_dir, labeled_icons):
             sleep(record_len_s * 1.1)
             get_video_in_device(device_target_dir, ip_port, command["command_name"])
             split_frames(device_target_dir, command["command_name"])
+            delete_video_in_device(ip_port)
+            sleep(2)
 
 
 def compare_frames(device_target_dir, command_name):
@@ -727,16 +729,107 @@ def processed_base_detection_in_menu_screen_step_by_step(
     return labeled_icons
 
 
-def mapping_time_menu_actions(): ...
+def get_actions_for_menu_options(labeled_icons, command_full_name):
+    command_name = command_full_name.split(" ")[0]
+    res = []
+    for command in labeled_icons["COMMANDS"]:
+        if (
+            command_name in command["command_name"]
+            and command_full_name != command["command_name"]
+        ):
+            res.append(command)
+
+    return res
+
+
+def mapping_time_menu_actions(ip_port, device_target_dir, labeled_icons):
+    for command in labeled_icons["COMMANDS"]:
+        if "menu" in command["command_name"]:
+            actions_names = get_actions_for_menu_options(
+                labeled_icons, command["command_name"]
+            )
+            command_name = command["command_name"]
+            sleep_time_menu = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                (command_name.split(" ")[0].upper())
+            ]["COMMAND_SLEEPS"]["CLICK_MENU"]
+
+            for action in actions_names:
+                record_len_s = 5
+                start_record_in_device(ip_port, record_len_s)
+                sleep(1)
+                record_len_s -= 1
+                click_by_coordinates_in_device(ip_port, command)
+                sleep(sleep_time_menu)
+                record_len_s -= sleep_time_menu
+
+                click_by_coordinates_in_device(ip_port, action)
+                sleep(record_len_s * 1.1)
+                file_name = action["command_name"].replace(":", "_")
+                get_video_in_device(
+                    f"{device_target_dir}\\{command_name}",
+                    ip_port,
+                    file_name,
+                )
+                split_frames(f"{device_target_dir}\\{command_name}", file_name)
+                delete_video_in_device(ip_port)
+                sleep(2)
+
+
+def calculate_time_menu_actions(device_target_dir, labeled_icons):
+    for command in labeled_icons["COMMANDS"]:
+        if "menu" in command["command_name"]:
+            actions_names = get_actions_for_menu_options(
+                labeled_icons, command["command_name"]
+            )
+            command_name = command["command_name"]
+            path_to_menu = f"{device_target_dir}\\{command_name}"
+
+            for action in actions_names:
+                file_name = action["command_name"].replace(":", "_")
+
+                frames_diff = compare_frames(path_to_menu, file_name)
+                moving_avg = calculate_moving_average(frames_diff, 4)
+                state_list, threshold_ref_list = state_buffer(moving_avg, 3)
+
+                animations = calculate_states(
+                    state_list,
+                    get_fps_for_video(device_target_dir, command["command_name"]),
+                )[1]
+
+                print(command["command_name"], animations)
+
+                command_name_full = command["command_name"]
+                command_name_upper = command_name_full.split(" ")[0].upper()
+                labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                    "COMMAND_SLEEPS"
+                ]["CLICK_ACTION"] = round(animations[2] * 1.1, 4)
+
+
+def change_mode_and_remapping(
+    ip_port,
+    labeled_icons,
+    mapping_requirements,
+    current_cam,
+    current_mode,
+):
+    cam = current_cam
+    mode = current_mode
+
+    for item in mapping_requirements["STATE_REQUIRES"]["MODE"]:
+        if item != mode:
+            for command in labeled_icons["COMMANDS"]:
+                name = f"portrait {item}"
+                if name == command["command_name"]:
+                    click_by_coordinates_in_device(ip_port, command)
 
 
 if __name__ == "__main__":
-    current_step = 3
+    current_step = 5
 
     device_target = "Samsung-A04e"
     subprocess.run("adb start-server")
 
-    ip_port = "192.168.155.3:36779"
+    ip_port = "192.168.155.3:43651"
     connect_device(ip_port)
 
     path_to_base_folder = os.getcwd()
@@ -812,7 +905,7 @@ if __name__ == "__main__":
         write_output_in_json(labeled_icons, device_target_dir, "initial_filter")
         current_step += 1
 
-    if labeled_icons is None:
+    if labeled_icons is None and current_step < 4:
         labeled_icons = load_labeled_icons(device_target_dir, "initial_filter")
 
     if current_step == 2:
@@ -833,6 +926,33 @@ if __name__ == "__main__":
         )
         current_step += 1
 
-    if current_step == 4:
+    if labeled_icons is None and current_step < 6:
+        labeled_icons = load_labeled_icons(
+            device_target_dir, "initial_filter_with_menu"
+        )
 
+    if current_step == 4:
+        mapping_time_menu_actions(ip_port, device_target_dir, labeled_icons)
         current_step += 1
+
+    if current_step == 5:
+        calculate_time_menu_actions(device_target_dir, labeled_icons)
+
+        write_output_in_json(
+            labeled_icons, device_target_dir, "initial_filter_with_menu_times"
+        )
+        current_step += 1
+
+    if labeled_icons is None:
+        labeled_icons = load_labeled_icons(
+            device_target_dir, "initial_filter_with_menu_times"
+        )
+
+    if current_step == 6:
+        change_mode_and_remapping(
+            ip_port,
+            labeled_icons,
+            mapping_requirements,
+            current_cam,
+            current_mode,
+        )
