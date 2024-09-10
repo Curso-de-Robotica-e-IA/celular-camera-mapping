@@ -421,7 +421,7 @@ def touch_mapping(labeled_icons, ip_port):
 
 
 def connect_device(ip_port):
-    subprocess.run(["adb", "connect", ip_port], capture_output=True, text=True)
+    subprocess.run(["adb", "connect", ip_port])
 
 
 def get_screen_image(ip_port, path, tag):
@@ -775,6 +775,16 @@ def mapping_time_menu_actions(ip_port, device_target_dir, labeled_icons):
                 sleep(2)
 
 
+def get_command_in_command_list(command_list, command_name, current_cam, current_mode):
+    for command in command_list:
+        if command_name in command["command_name"]:
+            if (
+                current_cam in command["requirements"]["cam"]
+                and current_mode in command["requirements"]["mode"]
+            ):
+                return command
+
+
 def calculate_time_menu_actions(device_target_dir, labeled_icons):
     for command in labeled_icons["COMMANDS"]:
         if "menu" in command["command_name"]:
@@ -805,26 +815,188 @@ def calculate_time_menu_actions(device_target_dir, labeled_icons):
                 ]["CLICK_ACTION"] = round(animations[2] * 1.1, 4)
 
 
-def change_mode_and_remapping(
+def change_cam_and_mode_for_remapping(
     ip_port,
+    device_target_dir,
+    size_in_screen,
     labeled_icons,
     mapping_requirements,
     current_cam,
     current_mode,
 ):
-    cam = current_cam
-    mode = current_mode
 
-    for item in mapping_requirements["STATE_REQUIRES"]["MODE"]:
-        if item != mode:
-            for command in labeled_icons["COMMANDS"]:
-                name = f"portrait {item}"
-                if name == command["command_name"]:
-                    click_by_coordinates_in_device(ip_port, command)
+    for c in mapping_requirements["STATE_REQUIRES"]["CAM"]:
+        if c != current_cam:
+            command_target_cam_name = f"cam {c}"
+            command_target_cam = get_command_in_command_list(
+                labeled_icons["COMMANDS"],
+                command_target_cam_name,
+                current_cam,
+                current_mode,
+            )
+
+            record_len_s = 5
+            start_record_in_device(ip_port, record_len_s)
+            sleep(1)
+            record_len_s -= 1
+            click_by_coordinates_in_device(ip_port, command_target_cam)
+
+            sleep(record_len_s * 1.1)
+            file_name = command_target_cam["command_name"].replace(":", "_")
+            get_video_in_device(
+                device_target_dir,
+                ip_port,
+                file_name,
+            )
+            split_frames(device_target_dir, file_name)
+            delete_video_in_device(ip_port)
+            sleep(2)
+
+            frames_diff = compare_frames(device_target_dir, file_name)
+            moving_avg = calculate_moving_average(frames_diff, 4)
+            state_list, threshold_ref_list = state_buffer(moving_avg, 3)
+
+            animations = calculate_states(
+                state_list,
+                get_fps_for_video(
+                    device_target_dir, command_target_cam["command_name"]
+                ),
+            )[0]
+
+            print(command_target_cam["command_name"], animations)
+
+            command_name_full = command_target_cam["command_name"]
+            command_name_upper = command_name_full.split(" ")[0].upper()
+
+            prev_value = 0
+            if (
+                "CLICK_ACTION"
+                in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                    "COMMAND_SLEEPS"
+                ]
+            ):
+                prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                    command_name_upper
+                ]["COMMAND_SLEEPS"]["CLICK_ACTION"]
+
+            labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_ACTION"] = max(prev_value, round(animations[2] * 1.1, 4))
+
+            opened_menu_frame_idx = (
+                animations[1] + (len(state_list) - 1 - animations[1]) // 2
+            )
+
+            opened_menu_frame_idx = min(opened_menu_frame_idx, animations[1] + 5)
+
+            opened_menu_img = cv2.imread(
+                f"{device_target_dir}\\{command_name_full}\\frames\\frame_{opened_menu_frame_idx}.png"
+            )
+
+            detect_boxes_from_contours = find_contours_in_image(opened_menu_img)
+            show_clickable_itens(
+                opened_menu_img, detect_boxes_from_contours, size_in_screen
+            )
+
+            labeled_icons = processed_base_detection_in_menu_screen_step_by_step(
+                opened_menu_img,
+                detect_boxes_from_contours,
+                size_in_screen,
+                labeled_icons,
+                mapping_requirements,
+                c,
+                current_mode,
+            )
+
+        for m in mapping_requirements["STATE_REQUIRES"]["MODE"]:
+            if m != current_mode:
+                command_target_mode_name = f"mode {m}"
+                command_target_mode = get_command_in_command_list(
+                    labeled_icons["COMMANDS"], command_target_mode_name, c, current_mode
+                )
+
+                record_len_s = 5
+                start_record_in_device(ip_port, record_len_s)
+                sleep(1)
+                record_len_s -= 1
+                click_by_coordinates_in_device(ip_port, command_target_mode)
+
+                sleep(record_len_s * 1.1)
+                file_name = command_target_mode["command_name"].replace(":", "_")
+                get_video_in_device(
+                    device_target_dir,
+                    ip_port,
+                    file_name,
+                )
+                split_frames(device_target_dir, file_name)
+                delete_video_in_device(ip_port)
+                sleep(2)
+
+                frames_diff = compare_frames(device_target_dir, file_name)
+                moving_avg = calculate_moving_average(frames_diff, 4)
+                state_list, threshold_ref_list = state_buffer(moving_avg, 3)
+
+                animations = calculate_states(
+                    state_list,
+                    get_fps_for_video(
+                        device_target_dir, command_target_mode["command_name"]
+                    ),
+                )[0]
+
+                print(command_target_mode["command_name"], animations)
+
+                command_name_full = command_target_mode["command_name"]
+                command_name_upper = command_name_full.split(" ")[0].upper()
+
+                prev_value = 0
+                if (
+                    "CLICK_ACTION"
+                    in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                        "COMMAND_SLEEPS"
+                    ]
+                ):
+                    prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                        command_name_upper
+                    ]["COMMAND_SLEEPS"]["CLICK_ACTION"]
+
+                labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                    "COMMAND_SLEEPS"
+                ]["CLICK_ACTION"] = max(prev_value, round(animations[2] * 1.1, 4))
+
+                opened_menu_frame_idx = (
+                    animations[1] + (len(state_list) - 1 - animations[1]) // 2
+                )
+
+                opened_menu_frame_idx = min(opened_menu_frame_idx, animations[1] + 5)
+
+                opened_menu_img = cv2.imread(
+                    f"{device_target_dir}\\{command_name_full}\\frames\\frame_{opened_menu_frame_idx}.png"
+                )
+
+                detect_boxes_from_contours = find_contours_in_image(opened_menu_img)
+                show_clickable_itens(
+                    opened_menu_img, detect_boxes_from_contours, size_in_screen
+                )
+
+                labeled_icons = processed_base_detection_in_menu_screen_step_by_step(
+                    opened_menu_img,
+                    detect_boxes_from_contours,
+                    size_in_screen,
+                    labeled_icons,
+                    mapping_requirements,
+                    c,
+                    m,
+                )
+
+                command_return_mode_name = f"mode {current_mode}"
+                command_return_mode = get_command_in_command_list(
+                    labeled_icons["COMMANDS"], command_return_mode_name, c, m
+                )
+                click_by_coordinates_in_device(ip_port, command_return_mode)
 
 
 if __name__ == "__main__":
-    current_step = 5
+    current_step = 6
 
     device_target = "Samsung-A04e"
     subprocess.run("adb start-server")
@@ -839,7 +1011,7 @@ if __name__ == "__main__":
     size_in_screen = 800
 
     mapping_requirements = {
-        "STATE_REQUIRES": {"CAM": ["main", "self"], "MODE": ["photo", "portrait"]},
+        "STATE_REQUIRES": {"CAM": ["main", "selfie"], "MODE": ["photo", "portrait"]},
         "COMMAND_ACTION_AVAILABLE": [
             "CLICK_MENU",
             "CLICK_ACTION",
@@ -949,10 +1121,17 @@ if __name__ == "__main__":
         )
 
     if current_step == 6:
-        change_mode_and_remapping(
+        change_cam_and_mode_for_remapping(
             ip_port,
+            device_target_dir,
+            size_in_screen,
             labeled_icons,
             mapping_requirements,
             current_cam,
             current_mode,
         )
+
+        write_output_in_json(
+            labeled_icons, device_target_dir, "initial_filter_with_menu_other_cam_mode"
+        )
+        current_step += 1
