@@ -995,13 +995,146 @@ def change_cam_and_mode_for_remapping(
                 click_by_coordinates_in_device(ip_port, command_return_mode)
 
 
+def get_menu_groups_by_cam_mode(
+    labeled_icons, mapping_requirements, current_cam, current_mode
+):
+    groups = []
+
+    for c in mapping_requirements["STATE_REQUIRES"]["CAM"]:
+        for m in mapping_requirements["STATE_REQUIRES"]["MODE"]:
+            element = {
+                "commands": [],
+                "requirements": {"cam": c, "mode": m},
+                "to_requirements": [],
+                "return_to_base": [],
+            }
+
+            if c != current_cam:
+                command_target_cam_name = f"cam {c}"
+                command_target_cam = get_command_in_command_list(
+                    labeled_icons["COMMANDS"],
+                    command_target_cam_name,
+                    current_cam,
+                    current_mode,
+                )
+                element["to_requirements"].append(command_target_cam)
+
+            if m != current_mode:
+                command_target_mode_name = f"mode {m}"
+                command_target_mode = get_command_in_command_list(
+                    labeled_icons["COMMANDS"],
+                    command_target_mode_name,
+                    c,
+                    current_mode,
+                )
+                element["to_requirements"].append(command_target_mode)
+
+                # to return
+                command_target_mode_name = f"mode {current_mode}"
+                command_target_mode = get_command_in_command_list(
+                    labeled_icons["COMMANDS"],
+                    command_target_mode_name,
+                    c,
+                    m,
+                )
+                element["return_to_base"].append(command_target_mode)
+
+            if c != current_cam:
+                # return to base
+                command_target_cam_name = f"cam {current_cam}"
+                command_target_cam = get_command_in_command_list(
+                    labeled_icons["COMMANDS"],
+                    command_target_cam_name,
+                    c,
+                    current_mode,
+                )
+                element["return_to_base"].append(command_target_cam)
+
+            groups.append(element)
+
+    for g in groups:
+        for command in labeled_icons["COMMANDS"]:
+            if (
+                "menu" in command["command_name"]
+                and g["requirements"]["cam"] in command["requirements"]["cam"]
+                and g["requirements"]["mode"] in command["requirements"]["mode"]
+            ):
+                g["commands"].append(command)
+
+    return groups
+
+
+def mapping_groups_by_cam_mode(
+    ip_port, device_target_dir, size_in_screen, labeled_icons, groups
+):
+    for g in groups:
+        # to requirements
+        for comm_to in g["to_requirements"]:
+            click_by_coordinates_in_device(ip_port, comm_to)
+            command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+            sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_ACTION"]
+            sleep(sleep_time)
+
+        touch_command = get_command_in_command_list(
+            labeled_icons["COMMANDS"],
+            "touch",
+            g["requirements"]["cam"],
+            g["requirements"]["mode"],
+        )
+
+        current_cam = g["requirements"]["cam"]
+        current_mode = g["requirements"]["mode"]
+        dir_for_mode = f"{current_cam} {current_mode}"
+        current_target_path = f"{device_target_dir}\\{dir_for_mode}"
+
+        if os.path.exists(current_target_path):
+            shutil.rmtree(current_target_path)
+
+        os.mkdir(current_target_path)
+
+        for command in g["commands"]:
+
+            command_name = command["command_name"]
+
+            record_len_s = 5
+            start_record_in_device(ip_port, record_len_s)
+            sleep(1)
+            record_len_s -= 1
+
+            click_by_coordinates_in_device(ip_port, command)
+
+            sleep(record_len_s * 1.1)
+            file_name = command_name.replace(":", "_")
+            get_video_in_device(
+                current_target_path,
+                ip_port,
+                file_name,
+            )
+            split_frames(current_target_path, file_name)
+            delete_video_in_device(ip_port)
+            sleep(2)
+            click_by_coordinates_in_device(ip_port, touch_command)
+            sleep(1)
+
+        # to requirements
+        for comm_to in g["return_to_base"]:
+            click_by_coordinates_in_device(ip_port, comm_to)
+            command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+            sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_ACTION"]
+            sleep(sleep_time)
+
+
 if __name__ == "__main__":
-    current_step = 6
+    current_step = 7
 
     device_target = "Samsung-A04e"
     subprocess.run("adb start-server")
 
-    ip_port = "192.168.155.3:43651"
+    ip_port = "192.168.155.3:43239"
     connect_device(ip_port)
 
     path_to_base_folder = os.getcwd()
@@ -1115,7 +1248,7 @@ if __name__ == "__main__":
         )
         current_step += 1
 
-    if labeled_icons is None:
+    if labeled_icons is None and current_step < 7:
         labeled_icons = load_labeled_icons(
             device_target_dir, "initial_filter_with_menu_times"
         )
@@ -1133,5 +1266,26 @@ if __name__ == "__main__":
 
         write_output_in_json(
             labeled_icons, device_target_dir, "initial_filter_with_menu_other_cam_mode"
+        )
+        current_step += 1
+
+    if labeled_icons is None:
+        labeled_icons = load_labeled_icons(
+            device_target_dir, "initial_filter_with_menu_other_cam_mode"
+        )
+
+    if current_step == 7:
+        command_groups = get_menu_groups_by_cam_mode(
+            labeled_icons, mapping_requirements, current_cam, current_mode
+        )
+
+        mapping_groups_by_cam_mode(
+            ip_port, device_target_dir, size_in_screen, labeled_icons, command_groups
+        )
+
+        write_output_in_json(
+            labeled_icons,
+            device_target_dir,
+            "initial_filter_with_menu_other_cam_mode_menu",
         )
         current_step += 1
