@@ -1064,9 +1064,7 @@ def get_menu_groups_by_cam_mode(
     return groups
 
 
-def mapping_groups_by_cam_mode(
-    ip_port, device_target_dir, size_in_screen, labeled_icons, groups
-):
+def mapping_groups_by_cam_mode(ip_port, device_target_dir, labeled_icons, groups):
     for g in groups:
         # to requirements
         for comm_to in g["to_requirements"]:
@@ -1128,8 +1126,77 @@ def mapping_groups_by_cam_mode(
             sleep(sleep_time)
 
 
+def mapping_menu_actions_in_each_group(
+    device_target_dir, size_in_screen, labeled_icons, groups
+):
+
+    for g in groups:
+
+        current_cam = g["requirements"]["cam"]
+        current_mode = g["requirements"]["mode"]
+        dir_for_mode = f"{current_cam} {current_mode}"
+        current_target_path = f"{device_target_dir}\\{dir_for_mode}"
+
+        for command in g["commands"]:
+
+            frames_diff = compare_frames(current_target_path, command["command_name"])
+            moving_avg = calculate_moving_average(frames_diff, 4)
+            state_list, threshold_ref_list = state_buffer(moving_avg, 3)
+
+            animations = calculate_states(
+                state_list,
+                get_fps_for_video(current_target_path, command["command_name"]),
+            )[0]
+            print(command["command_name"], animations)
+
+            command_name_full = command["command_name"]
+            command_name_upper = command_name_full.split(" ")[0].upper()
+
+            prev_value = 0
+            if (
+                "CLICK_MENU"
+                in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                    "COMMAND_SLEEPS"
+                ]
+            ):
+                prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                    command_name_upper
+                ]["COMMAND_SLEEPS"]["CLICK_MENU"]
+
+            labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_MENU"] = max(prev_value, round(animations[2] * 1.5, 4))
+
+            opened_menu_frame_idx = (
+                animations[1] + (len(state_list) - 1 - animations[1]) // 2
+            )
+
+            opened_menu_frame_idx = min(opened_menu_frame_idx, animations[1] + 5)
+
+            opened_menu_img = cv2.imread(
+                f"{current_target_path}\\{command_name_full}\\frames\\frame_{opened_menu_frame_idx}.png"
+            )
+
+            detect_boxes_from_contours = find_contours_in_image(opened_menu_img)
+            show_clickable_itens(
+                opened_menu_img, detect_boxes_from_contours, size_in_screen
+            )
+
+            labeled_icons = processed_base_detection_in_menu_screen_step_by_step(
+                opened_menu_img,
+                detect_boxes_from_contours,
+                size_in_screen,
+                labeled_icons,
+                mapping_requirements,
+                current_cam,
+                current_mode,
+            )
+
+    return labeled_icons
+
+
 if __name__ == "__main__":
-    current_step = 7
+    current_step = 9
 
     device_target = "Samsung-A04e"
     subprocess.run("adb start-server")
@@ -1269,23 +1336,49 @@ if __name__ == "__main__":
         )
         current_step += 1
 
-    if labeled_icons is None:
+    command_groups = None
+
+    if labeled_icons is None and current_step < 9:
         labeled_icons = load_labeled_icons(
             device_target_dir, "initial_filter_with_menu_other_cam_mode"
         )
 
-    if current_step == 7:
         command_groups = get_menu_groups_by_cam_mode(
             labeled_icons, mapping_requirements, current_cam, current_mode
         )
 
+    if current_step == 7:
         mapping_groups_by_cam_mode(
-            ip_port, device_target_dir, size_in_screen, labeled_icons, command_groups
+            ip_port, device_target_dir, labeled_icons, command_groups
+        )
+        current_step += 1
+
+    if current_step == 8:
+        labeled_icons = mapping_menu_actions_in_each_group(
+            device_target_dir, size_in_screen, labeled_icons, command_groups
         )
 
         write_output_in_json(
             labeled_icons,
             device_target_dir,
-            "initial_filter_with_menu_other_cam_mode_menu",
+            "mapping_with_menu_all_itens_cam_and_mode",
+        )
+        current_step += 1
+
+    if labeled_icons is None:
+        labeled_icons = load_labeled_icons(
+            device_target_dir, "mapping_with_menu_all_itens_cam_and_mode"
+        )
+
+        command_groups = get_menu_groups_by_cam_mode(
+            labeled_icons, mapping_requirements, current_cam, current_mode
+        )
+
+    if current_step == 9:
+
+        write_output_in_json(
+            labeled_icons,
+            device_target_dir,
+            "mapping_with_menu_all_itens_cam_and_mode_and_times",
         )
         current_step += 1
