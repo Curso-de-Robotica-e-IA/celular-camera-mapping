@@ -1,0 +1,238 @@
+{
+  "COMMAND_CHANGE_SEQUENCE": {
+    "CAM": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {}
+    },
+    "MODE": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {}
+    },
+    "ASPECT_RATIO": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_MENU",
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_MENU",
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {
+        "CLICK_MENU": 0.4169,
+        "CLICK_ACTION": 0.4169
+      }
+    },
+    "FLASH": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_MENU",
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_MENU",
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {
+        "CLICK_MENU": 0.4027,
+        "CLICK_ACTION": 0.4027
+      }
+    },
+    "BLUR": {
+      "COMMAND_SEQUENCE ON": [],
+      "COMMAND_SEQUENCE OFF": [],
+      "COMMAND_SLEEPS": {}
+    },
+    "TAKE_PICTURE": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {}
+    },
+    "TOUCH": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {}
+    },
+    "ZOOM": {
+      "COMMAND_SEQUENCE ON": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SEQUENCE OFF": [
+        "CLICK_ACTION"
+      ],
+      "COMMAND_SLEEPS": {}
+    }
+  },
+  "COMMANDS": [
+    {
+      "command_name": "cam selfie",
+      "click_by_coordinates": {
+        "start_x": 566,
+        "start_y": 1360
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "take_picture",
+      "click_by_coordinates": {
+        "start_x": 359,
+        "start_y": 1359
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "mode portrait",
+      "click_by_coordinates": {
+        "start_x": 203,
+        "start_y": 1201
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "zoom 1.0",
+      "click_by_coordinates": {
+        "start_x": 330,
+        "start_y": 1079
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "aspect_ratio menu",
+      "click_by_coordinates": {
+        "start_x": 506,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "flash menu",
+      "click_by_coordinates": {
+        "start_x": 216,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "touch",
+      "click_by_coordinates": {
+        "start_x": 360,
+        "start_y": 800
+      },
+      "requirements": {
+        "cam": "main,selfie",
+        "mode": "photo,portrait"
+      }
+    },
+    {
+      "command_name": "aspect_ratio full",
+      "click_by_coordinates": {
+        "start_x": 515,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "aspect_ratio 1:1",
+      "click_by_coordinates": {
+        "start_x": 411,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "aspect_ratio 9:16",
+      "click_by_coordinates": {
+        "start_x": 307,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "aspect_ratio 3:4",
+      "click_by_coordinates": {
+        "start_x": 203,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "flash off",
+      "click_by_coordinates": {
+        "start_x": 255,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "flash auto",
+      "click_by_coordinates": {
+        "start_x": 359,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    },
+    {
+      "command_name": "flash on",
+      "click_by_coordinates": {
+        "start_x": 463,
+        "start_y": 120
+      },
+      "requirements": {
+        "cam": "main",
+        "mode": "photo"
+      }
+    }
+  ]
+}
