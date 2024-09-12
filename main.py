@@ -258,8 +258,8 @@ def processed_base_detection_in_home_screen_step_by_step(
                 labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TAKE_PICTURE"][
                     "COMMAND_SLEEPS"
                 ]["CLICK_ACTION"] = 3
-                
-                command_full_name = command_label.lower()
+
+                command_full_name = command_label.lower().replace("_", " ")
             else:
                 command_value = input("Typing the command value:")
                 command_full_name = command_label.lower() + f" {command_value}"
