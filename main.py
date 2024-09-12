@@ -255,6 +255,10 @@ def processed_base_detection_in_home_screen_step_by_step(
             if command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx] == "CLICK_MENU":
                 command_full_name = command_label.lower() + " menu"
             elif command_label == "TAKE_PICTURE":
+                labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TAKE_PICTURE"][
+                    "COMMAND_SLEEPS"
+                ]["CLICK_ACTION"] = 3
+                
                 command_full_name = command_label.lower()
             else:
                 command_value = input("Typing the command value:")
@@ -418,6 +422,10 @@ def touch_mapping(labeled_icons, ip_port):
         labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"][
             "COMMAND_SEQUENCE OFF"
         ].append("CLICK_ACTION")
+
+        labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SLEEPS"][
+            "CLICK_ACTION"
+        ] = 2
 
 
 def connect_device(ip_port):
