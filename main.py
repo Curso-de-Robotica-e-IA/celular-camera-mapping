@@ -812,7 +812,7 @@ def calculate_time_menu_actions(device_target_dir, labeled_icons):
                 command_name_upper = command_name_full.split(" ")[0].upper()
                 labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
                     "COMMAND_SLEEPS"
-                ]["CLICK_ACTION"] = round(animations[2] * 1.1, 4)
+                ]["CLICK_ACTION"] = round(animations[2] * 1.5, 4)
 
 
 def change_cam_and_mode_for_remapping(
@@ -1195,14 +1195,164 @@ def mapping_menu_actions_in_each_group(
     return labeled_icons
 
 
+def mapping_menu_actions_animations_in_each_group(
+    ip_port, device_target_dir, labeled_icons, groups
+):
+
+    for g in groups:
+
+        # to requirements
+        for comm_to in g["to_requirements"]:
+            click_by_coordinates_in_device(ip_port, comm_to)
+            command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+            sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_ACTION"]
+            sleep(sleep_time)
+
+        current_cam = g["requirements"]["cam"]
+        current_mode = g["requirements"]["mode"]
+        dir_for_mode = f"{current_cam} {current_mode}"
+
+        for command in g["commands"]:
+            full_command_name = command["command_name"]
+            command_name_type = full_command_name.split(" ")[0]
+
+            # get child for this combination
+            options_for_this_menu = []
+            for item in labeled_icons["COMMANDS"]:
+                if (
+                    command_name_type in item["command_name"]
+                    and (not full_command_name in item["command_name"])
+                    and current_cam in item["requirements"]["cam"]
+                    and current_mode in item["requirements"]["mode"]
+                ):
+                    options_for_this_menu.append(item)
+
+            for action in options_for_this_menu:
+                record_len_s = 5
+                start_record_in_device(ip_port, record_len_s)
+                sleep(1)
+                record_len_s -= 1
+
+                click_by_coordinates_in_device(ip_port, command)
+
+                sleep_time_menu = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                    (command_name_type.upper())
+                ]["COMMAND_SLEEPS"]["CLICK_MENU"]
+                sleep(sleep_time_menu)
+
+                click_by_coordinates_in_device(ip_port, action)
+
+                current_target_path = (
+                    f"{device_target_dir}\\{dir_for_mode}\\{full_command_name}"
+                )
+
+                sleep(record_len_s * 1.1)
+                file_name = action["command_name"].replace(":", "_")
+                get_video_in_device(
+                    current_target_path,
+                    ip_port,
+                    file_name,
+                )
+                split_frames(current_target_path, file_name)
+                delete_video_in_device(ip_port)
+                sleep(2)
+
+        # return_to_base
+        for comm_to in g["return_to_base"]:
+            click_by_coordinates_in_device(ip_port, comm_to)
+            command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+            sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper][
+                "COMMAND_SLEEPS"
+            ]["CLICK_ACTION"]
+            sleep(sleep_time)
+
+
+def calculate_menu_actions_animations_in_each_group(
+    device_target_dir, labeled_icons, groups
+):
+
+    for g in groups:
+        current_cam = g["requirements"]["cam"]
+        current_mode = g["requirements"]["mode"]
+        dir_for_mode = f"{current_cam} {current_mode}"
+
+        for command in g["commands"]:
+            full_command_name = command["command_name"]
+            command_name_type = full_command_name.split(" ")[0]
+
+            # get child for this combination
+            options_for_this_menu = []
+            for item in labeled_icons["COMMANDS"]:
+                if (
+                    command_name_type in item["command_name"]
+                    and (not full_command_name in item["command_name"])
+                    and current_cam in item["requirements"]["cam"]
+                    and current_mode in item["requirements"]["mode"]
+                ):
+                    options_for_this_menu.append(item)
+
+            for action in options_for_this_menu:
+
+                current_target_path = (
+                    f"{device_target_dir}\\{dir_for_mode}\\{full_command_name}"
+                )
+
+                file_name = action["command_name"].replace(":", "_")
+
+                frames_diff = compare_frames(current_target_path, file_name)
+                moving_avg = calculate_moving_average(frames_diff, 4)
+                state_list, threshold_ref_list = state_buffer(moving_avg, 3)
+
+                animations = calculate_states(
+                    state_list,
+                    get_fps_for_video(current_target_path, file_name),
+                )
+
+                print(command["command_name"], animations)
+
+                command_name_full = command["command_name"]
+                command_name_upper = command_name_full.split(" ")[0].upper()
+
+                menu_sleep_time = 0
+
+                if len(animations) == 1:
+                    menu_sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                        command_name_upper
+                    ]["COMMAND_SLEEPS"]["CLICK_MENU"]
+                    animations = animations[0]
+                else:
+                    animations = animations[1]
+
+                prev_value = 0
+                if (
+                    "CLICK_ACTION"
+                    in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                        "COMMAND_SLEEPS"
+                    ]
+                ):
+                    prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                        command_name_upper
+                    ]["COMMAND_SLEEPS"]["CLICK_ACTION"]
+
+                labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                    "COMMAND_SLEEPS"
+                ]["CLICK_ACTION"] = max(
+                    prev_value, round(animations[2] * 1.5 - menu_sleep_time, 4)
+                )
+
+    return labeled_icons
+
+
 if __name__ == "__main__":
-    current_step = 9
+    current_step = 10
 
     device_target = "Samsung-A04e"
     subprocess.run("adb start-server")
 
     ip_port = "192.168.155.3:43239"
-    connect_device(ip_port)
+    # connect_device(ip_port)
 
     path_to_base_folder = os.getcwd()
 
@@ -1376,9 +1526,22 @@ if __name__ == "__main__":
 
     if current_step == 9:
 
+        mapping_menu_actions_animations_in_each_group(
+            ip_port, device_target_dir, labeled_icons, command_groups
+        )
+
+        current_step += 1
+
+    if current_step == 10:
+
+        labeled_icons = calculate_menu_actions_animations_in_each_group(
+            device_target_dir, labeled_icons, command_groups
+        )
+
         write_output_in_json(
             labeled_icons,
             device_target_dir,
             "mapping_with_menu_all_itens_cam_and_mode_and_times",
         )
+
         current_step += 1
