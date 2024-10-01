@@ -1,8 +1,9 @@
 import os
 from time import sleep
 from device import Device
+from pi.process_frames import ProcessFrames
 from pi.process_image import ProcessImage
-from utils import create_or_replace_dir, load_labeled_icons, write_output_in_json
+from utils import create_or_replace_dir, load_labeled_icons, write_output_in_json, get_command_in_command_list
 
 
 class DeviceMappingCLI:
@@ -45,11 +46,14 @@ class DeviceMappingCLI:
         self.__current_mode = "photo"
 
         self.__current_step = current_step
-        self.__total_steps = 10
+        self.__total_steps = 5
         self.__labeled_icons = self.create_current_context_result()
 
         self.__device = Device()
         self.__process_img = ProcessImage(self.__size_in_screen)
+        self.__process_frames = ProcessFrames(
+            self.__device_objects_dir, self.__mapping_requirements, self.__device, self.__process_img
+        )
 
     def __start_result_json(self):
         result_mapping = {"COMMAND_CHANGE_SEQUENCE": {}, "COMMANDS": []}
@@ -63,19 +67,85 @@ class DeviceMappingCLI:
 
         return result_mapping
 
+    def __get_menu_groups_by_cam_mode(self):
+        groups = []
+
+        for c in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
+            for m in self.__mapping_requirements["STATE_REQUIRES"]["MODE"]:
+                element = {
+                    "commands": [],
+                    "requirements": {"cam": c, "mode": m},
+                    "to_requirements": [],
+                    "return_to_base": [],
+                }
+
+                if c != self.__current_cam:
+                    command_target_cam_name = f"cam {c}"
+                    command_target_cam = get_command_in_command_list(
+                        self.__labeled_icons["COMMANDS"],
+                        command_target_cam_name,
+                        self.__current_cam,
+                        self.__current_mode,
+                    )
+                    element["to_requirements"].append(command_target_cam)
+
+                if m != self.__current_mode:
+                    command_target_mode_name = f"mode {m}"
+                    command_target_mode = get_command_in_command_list(
+                        self.__labeled_icons["COMMANDS"],
+                        command_target_mode_name,
+                        c,
+                        self.__current_mode,
+                    )
+                    element["to_requirements"].append(command_target_mode)
+
+                    # to return
+                    command_target_mode_name = f"mode {self.__current_mode}"
+                    command_target_mode = get_command_in_command_list(
+                        self.__labeled_icons["COMMANDS"],
+                        command_target_mode_name,
+                        c,
+                        m,
+                    )
+                    element["return_to_base"].append(command_target_mode)
+
+                if c != self.__current_cam:
+                    # return to base
+                    command_target_cam_name = f"cam {self.__current_cam}"
+                    command_target_cam = get_command_in_command_list(
+                        self.__labeled_icons["COMMANDS"],
+                        command_target_cam_name,
+                        c,
+                        self.__current_mode,
+                    )
+                    element["return_to_base"].append(command_target_cam)
+
+                groups.append(element)
+
+        for g in groups:
+            for command in self.__labeled_icons["COMMANDS"]:
+                if (
+                    "menu" in command["command_name"]
+                    and g["requirements"]["cam"] in command["requirements"]["cam"]
+                    and g["requirements"]["mode"] in command["requirements"]["mode"]
+                ):
+                    g["commands"].append(command)
+
+        return groups
+
     def create_current_context_result(self):
-        if self.__current_step < 2:
+        if self.__current_step == 0:
             create_or_replace_dir(self.__device_output_dir)
             create_or_replace_dir(self.__device_tmp_output_dir)
             return self.__start_result_json()
         else:
-            return load_labeled_icons(self.__device_tmp_output_dir, f"res_step_{self.__current_step}.json")
+            return load_labeled_icons(self.__device_tmp_output_dir, f"res_step_{(self.__current_step-1)}.json")
 
     def flush_current_step_progress(self):
         write_output_in_json(self.__labeled_icons, self.__device_tmp_output_dir, f"res_step_{self.__current_step}")
         self.__current_step += 1
 
-    def step_1(self):
+    def step_0(self):
         print("Mapping start screen ...")
         create_or_replace_dir(self.__device_objects_dir)
 
@@ -90,9 +160,7 @@ class DeviceMappingCLI:
             self.__current_mode,
         )
 
-        self.flush_current_step_progress()
-
-    def step_2(self):
+    def step_1(self):
         print("Mapping touch for all screens ...")
         dimension = self.__device.get_device_dimensions()
 
@@ -114,10 +182,22 @@ class DeviceMappingCLI:
             self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SEQUENCE OFF"].append("CLICK_ACTION")
 
             self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SLEEPS"]["CLICK_ACTION"] = 2
-
-            self.flush_current_step_progress()
         else:
-            print("Error in get dimension of device")
+            raise RuntimeError("Error in get dimension of device")
+
+    def step_2(self):
+        print("Mapping changes in cam and mode ...")
+
+        self.__process_frames.cam_and_mode_gradle_remapping(
+            self.__labeled_icons, self.__current_cam, self.__current_mode
+        )
+
+    def step_3(self):
+        print("Calculate menu action animations in each combination ...")
+
+        mapping_groups = self.__get_menu_groups_by_cam_mode()
+
+        self.__process_frames.calculate_menu_actions_animations_in_each_group(self.__labeled_icons, mapping_groups)
 
     def main_loop(self):
 
@@ -126,15 +206,17 @@ class DeviceMappingCLI:
         sleep(5)
 
         for id in range(self.__current_step, self.__total_steps):
-            method_name = f"step_{(id+1)}"
+            method_name = f"step_{id}"
             cur_step = getattr(self, method_name)
             cur_step()
 
+            self.flush_current_step_progress()
+
 
 if __name__ == "__main__":
-    cur_step = 0
+    start_step = 0
     cur_device_name = "Samsung-A34"
     device_ip_port = "192.168.155.1:35125"
-    cli_app = DeviceMappingCLI(cur_device_name, device_ip_port, cur_step)
+    cli_app = DeviceMappingCLI(cur_device_name, device_ip_port, start_step)
 
     cli_app.main_loop()

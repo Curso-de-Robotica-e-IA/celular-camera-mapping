@@ -40,3 +40,10 @@ def create_or_replace_dir(path_dir):
         shutil.rmtree(path_dir)
 
     os.mkdir(path_dir)
+
+
+def get_command_in_command_list(command_list, command_name, current_cam, current_mode):
+    for command in command_list:
+        if command_name in command["command_name"]:
+            if current_cam in command["requirements"]["cam"] and current_mode in command["requirements"]["mode"]:
+                return command
