@@ -8,8 +8,9 @@ from utils import show_image_in_thread
 
 class ProcessImage:
 
-    def __init__(self, size_in_screen) -> None:
+    def __init__(self, size_in_screen, mapping_requirements) -> None:
         self.__size_in_screen = size_in_screen
+        self.__mapping_requirements = mapping_requirements
 
     def __merge_contours(self, contour1, contour2):
         return np.concatenate((contour1, contour2), axis=0)
@@ -192,7 +193,7 @@ class ProcessImage:
 
         return labeled_icons
 
-    def process_screen_step_by_step(self, labeled_icons, image_path, mapping_requirements, current_cam, current_mode):
+    def process_screen_step_by_step(self, labeled_icons, image_path, current_cam, current_mode):
 
         image = cv2.imread(image_path)
 
@@ -204,7 +205,7 @@ class ProcessImage:
             image,
             detect_boxes_from_contours,
             self.__size_in_screen,
-            mapping_requirements,
+            self.__mapping_requirements,
             labeled_icons,
             current_cam,
             current_mode,
