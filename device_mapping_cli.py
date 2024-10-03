@@ -50,7 +50,7 @@ class DeviceMappingCLI:
         self.__labeled_icons = self.create_current_context_result()
 
         self.__device = Device()
-        self.__process_img = ProcessImage(self.__size_in_screen)
+        self.__process_img = ProcessImage(self.__size_in_screen, self.__mapping_requirements)
         self.__process_frames = ProcessFrames(
             self.__device_objects_dir, self.__mapping_requirements, self.__device, self.__process_img
         )
@@ -139,7 +139,7 @@ class DeviceMappingCLI:
             create_or_replace_dir(self.__device_tmp_output_dir)
             return self.__start_result_json()
         else:
-            return load_labeled_icons(self.__device_tmp_output_dir, f"res_step_{(self.__current_step-1)}.json")
+            return load_labeled_icons(self.__device_tmp_output_dir, f"res_step_{(self.__current_step-1)}")
 
     def flush_current_step_progress(self):
         write_output_in_json(self.__labeled_icons, self.__device_tmp_output_dir, f"res_step_{self.__current_step}")
@@ -147,15 +147,16 @@ class DeviceMappingCLI:
 
     def step_0(self):
         print("Mapping start screen ...")
+        current_dir = f"{self.__device_objects_dir}\\{self.__current_cam} {self.__current_mode}"
         create_or_replace_dir(self.__device_objects_dir)
+        create_or_replace_dir(current_dir)
 
         self.__device.screen_shot()
-        self.__device.get_screen_image(self.__device_objects_dir, "start_screen")
+        self.__device.get_screen_image(current_dir, "start_screen")
 
         self.__process_img.process_screen_step_by_step(
             self.__labeled_icons,
-            f"{self.__device_objects_dir}\\screencap_start_screen.png",
-            self.__mapping_requirements,
+            f"{current_dir}\\screencap_start_screen.png",
             self.__current_cam,
             self.__current_mode,
         )
@@ -197,6 +198,13 @@ class DeviceMappingCLI:
 
         mapping_groups = self.__get_menu_groups_by_cam_mode()
 
+        self.__process_frames.mapping_menu_actions_in_each_group(self.__labeled_icons, mapping_groups)
+
+    def step_4(self):
+        print("Calculate menu action in each combination ...")
+
+        mapping_groups = self.__get_menu_groups_by_cam_mode()
+
         self.__process_frames.calculate_menu_actions_animations_in_each_group(self.__labeled_icons, mapping_groups)
 
     def main_loop(self):
@@ -206,7 +214,13 @@ class DeviceMappingCLI:
         sleep(5)
 
         for id in range(self.__current_step, self.__total_steps):
+
             method_name = f"step_{id}"
+
+            print("Execute ", method_name)
+            input(
+                f"Check if the device has the camera open with the configuration: Cam={self.__current_cam}, Mode={self.__current_mode}\nPress enter after check..."
+            )
             cur_step = getattr(self, method_name)
             cur_step()
 
@@ -214,9 +228,9 @@ class DeviceMappingCLI:
 
 
 if __name__ == "__main__":
-    start_step = 0
+    start_step = 3
     cur_device_name = "Samsung-A34"
-    device_ip_port = "192.168.155.1:35125"
+    device_ip_port = "192.168.155.1:42007"
     cli_app = DeviceMappingCLI(cur_device_name, device_ip_port, start_step)
 
     cli_app.main_loop()

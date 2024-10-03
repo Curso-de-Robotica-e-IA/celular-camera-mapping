@@ -131,65 +131,78 @@ class ProcessImage:
                 thickness=2,
             )
             image = cv2.resize(image, (0, 0), fx=scale, fy=scale)
-            show_image_in_thread("Box icon", image)
-            label_name = (input("Is a valid item? (y/n)")).lower()
-            cv2.destroyAllWindows()
 
-            if "y" in label_name:
-                command = {}
-                print("Select the item type in list:\n")
-                for i, elem in enumerate(command_to_mapping["ITENS_TO_MAPPING"]):
-                    print(f"[{i}] -", elem)
+            while True:
+                try:
+                    show_image_in_thread("Box icon", image)
+                    label_name = (input("Is a valid item? (y/n)")).lower()
+                    cv2.destroyAllWindows()
 
-                idx = None
-                while idx is None:
-                    try:
-                        input_idx = int(input("Select index: "))
-                        idx = input_idx
-                    except Exception as e:
-                        print(e)
+                    if "y" in label_name:
+                        command = {}
+                        print("Select the item type in list:\n")
+                        for i, elem in enumerate(command_to_mapping["ITENS_TO_MAPPING"]):
+                            print(f"[{i}] -", elem)
 
-                command_label = command_to_mapping["ITENS_TO_MAPPING"][idx]
+                        idx = None
+                        while idx is None:
+                            try:
+                                input_idx = int(input("Select index: "))
+                                idx = input_idx
+                            except Exception as e:
+                                print(e)
 
-                print("Select the command action type in list:\n")
-                for i, elem in enumerate(command_to_mapping["COMMAND_ACTION_AVAILABLE"]):
-                    print(f"[{i}] -", elem)
+                        command_label = command_to_mapping["ITENS_TO_MAPPING"][idx]
 
-                act_idx = None
-                while act_idx is None:
-                    try:
-                        input_idx = int(input("Select index: "))
-                        act_idx = input_idx
-                    except Exception as e:
-                        print(e)
+                        print("Select the command action type in list:\n")
+                        for i, elem in enumerate(command_to_mapping["COMMAND_ACTION_AVAILABLE"]):
+                            print(f"[{i}] -", elem)
 
-                command_full_name = ""
-                if command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx] == "CLICK_MENU":
-                    command_full_name = command_label.lower() + " menu"
-                elif command_label == "TAKE_PICTURE":
-                    labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TAKE_PICTURE"]["COMMAND_SLEEPS"]["CLICK_ACTION"] = 3
-                    command_full_name = command_label.lower().replace("_", " ")
-                else:
-                    command_value = input("Typing the command value:")
-                    command_full_name = command_label.lower() + f" {command_value}"
+                        act_idx = None
+                        while act_idx is None:
+                            try:
+                                input_idx = int(input("Select index: "))
+                                act_idx = input_idx
+                            except Exception as e:
+                                print(e)
 
-                command["command_name"] = command_full_name
-                command["click_by_coordinates"] = {
-                    "start_x": box.centroid.x,
-                    "start_y": box.centroid.y,
-                }
+                        command_full_name = ""
+                        if command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx] == "CLICK_MENU":
+                            command_full_name = command_label.lower() + " menu"
+                        elif command_label == "TAKE_PICTURE":
+                            labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TAKE_PICTURE"]["COMMAND_SLEEPS"][
+                                "CLICK_ACTION"
+                            ] = 3
+                            command_full_name = command_label.lower().replace("_", " ")
+                        else:
+                            command_value = input("Typing the command value:")
+                            command_full_name = command_label.lower() + f" {command_value}"
 
-                command["requirements"] = {"cam": current_cam, "mode": current_mode}
+                        command["command_name"] = command_full_name
+                        command["click_by_coordinates"] = {
+                            "start_x": box.centroid.x,
+                            "start_y": box.centroid.y,
+                        }
 
-                apply_to = "on/off"
+                        command["requirements"] = {"cam": current_cam, "mode": current_mode}
 
-                for t in apply_to.split("/"):
-                    value = f"COMMAND_SEQUENCE {(t.upper())}"
-                    labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value].append(
-                        command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
-                    )
+                        apply_to = "on/off"
 
-                labeled_icons["COMMANDS"].append(command)
+                        for t in apply_to.split("/"):
+                            value = f"COMMAND_SEQUENCE {(t.upper())}"
+                            if not (
+                                command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
+                                in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value]
+                            ):
+                                labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value].append(
+                                    command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
+                                )
+
+                        labeled_icons["COMMANDS"].append(command)
+
+                    break
+                except KeyboardInterrupt:
+                    print("\n\nClean selection for current item\n")
 
         return labeled_icons
 
@@ -210,4 +223,3 @@ class ProcessImage:
             current_cam,
             current_mode,
         )
-        return labeled_icons

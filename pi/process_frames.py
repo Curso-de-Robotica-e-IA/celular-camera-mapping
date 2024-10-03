@@ -7,7 +7,7 @@ import cv2
 
 from device import Device
 from pi.process_image import ProcessImage
-from utils import get_command_in_command_list
+from utils import create_or_replace_dir, get_command_in_command_list
 
 
 class ProcessFrames:
@@ -167,23 +167,23 @@ class ProcessFrames:
 
         return state_list, threshold_ref_list
 
-    def __join_sleep_time(self, labeled_icons, command_name_upper, sleep_time):
+    def __join_sleep_time(self, labeled_icons, type_command, command_name_upper, sleep_time):
         prev_value = 0
-        if "CLICK_ACTION" in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]:
-            prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]["CLICK_ACTION"]
+        if type_command in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]:
+            prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][type_command]
 
-        labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]["CLICK_ACTION"] = max(
+        labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][type_command] = max(
             prev_value, round(sleep_time * 1.2, 2)
         )
 
-    def __calculate_path_for_frame_with_menu_open(self, state_list, command_name_full, open_animation_time):
+    def __calculate_path_for_frame_with_menu_open(self, state_list, path_base, open_animation_time):
         opened_menu_frame_idx = open_animation_time + (len(state_list) - 1 - open_animation_time) // 2
 
         opened_menu_frame_idx = min(opened_menu_frame_idx, open_animation_time + 5)
 
-        return f"{self.__device_target_dir}\\{command_name_full}\\frames\\frame_{opened_menu_frame_idx}.png"
+        return f"{path_base}\\frames\\frame_{opened_menu_frame_idx}.png"
 
-    def __execute_interaction_with_device(self, command_target_cam):
+    def __execute_interaction_with_device(self, path_base, command_target_cam, file_name):
         record_len_s = 5
         self.__device.start_record_in_device(record_len_s)
         sleep(1)
@@ -191,22 +191,132 @@ class ProcessFrames:
         self.__device.click_by_coordinates_in_device(command_target_cam)
 
         sleep(record_len_s * 1.1)
-        file_name = command_target_cam["command_name"].replace(":", "_")
-        self.__device.get_video_in_device(self.__device_target_dir, file_name)
-        self.__split_frames(self.__device_target_dir, file_name)
+        self.__device.get_video_in_device(path_base, file_name)
+        self.__split_frames(path_base, file_name)
         self.__device.delete_video_in_device()
         sleep(2)
 
-        frames_diff = self.__compare_frames(self.__device_target_dir, file_name)
+        frames_diff = self.__compare_frames(path_base, file_name)
         moving_avg = self.__calculate_moving_average(frames_diff, 4)
         state_list, threshold_ref_list = self.__state_buffer(moving_avg, 3)
 
         animations = self.__calculate_states(
             state_list,
-            self.__get_fps_for_video(self.__device_target_dir, command_target_cam["command_name"]),
+            self.__get_fps_for_video(path_base, file_name),
         )[0]
 
         return state_list, animations
+
+    def cam_and_mode_gradle_remapping(self, labeled_icons, current_cam, current_mode):
+
+        for c in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
+            if c != current_cam:
+                command_target_cam_name = f"cam {c}"
+                command_target_cam = get_command_in_command_list(
+                    labeled_icons["COMMANDS"],
+                    command_target_cam_name,
+                    current_cam,
+                    current_mode,
+                )
+                file_name = f"{c} {current_mode}"
+                state_list, animations = self.__execute_interaction_with_device(
+                    self.__device_target_dir, command_target_cam, file_name
+                )
+
+                print(command_target_cam["command_name"], animations)
+
+                command_name_full = command_target_cam["command_name"]
+                command_name_upper = command_name_full.split(" ")[0].upper()
+
+                self.__join_sleep_time(labeled_icons, "CLICK_ACTION", command_name_upper, animations[2])
+
+                opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
+                    state_list, f"{self.__device_target_dir}\\{file_name}", animations[1]
+                )
+
+                self.__process_image.process_screen_step_by_step(labeled_icons, opened_menu_img_path, c, current_mode)
+
+                input(
+                    f"Check if the device has the camera open with the configuration: Cam={c}, Mode={current_mode}\nPress enter after check"
+                )
+
+            for m in self.__mapping_requirements["STATE_REQUIRES"]["MODE"]:
+                if m != current_mode:
+                    command_target_mode_name = f"mode {m}"
+                    command_target_mode = get_command_in_command_list(
+                        labeled_icons["COMMANDS"], command_target_mode_name, c, current_mode
+                    )
+
+                    file_name = f"{c} {m}"
+                    state_list, animations = self.__execute_interaction_with_device(
+                        self.__device_target_dir, command_target_mode, file_name
+                    )
+
+                    print(command_target_mode["command_name"], animations)
+
+                    command_name_full = command_target_mode["command_name"]
+                    command_name_upper = command_name_full.split(" ")[0].upper()
+
+                    self.__join_sleep_time(labeled_icons, command_name_upper, animations[2])
+
+                    opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
+                        state_list, f"{self.__device_target_dir}\\{file_name}", animations[1]
+                    )
+
+                    self.__process_image.process_screen_step_by_step(labeled_icons, opened_menu_img_path, c, m)
+
+                    input(
+                        f"Check if the device has the camera open with the configuration: Cam={c}, Mode={current_mode}\nPress enter after check..."
+                    )
+
+    def mapping_menu_actions_in_each_group(self, labeled_icons, groups):
+
+        for g in groups:
+
+            # to requirements
+            for comm_to in g["to_requirements"]:
+                self.__device.click_by_coordinates_in_device(comm_to)
+                command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
+                    "CLICK_ACTION"
+                ]
+                sleep(sleep_time)
+
+            current_cam = g["requirements"]["cam"]
+            current_mode = g["requirements"]["mode"]
+
+            for command in g["commands"]:
+                command_name_full = command["command_name"]
+                command_name_upper = command_name_full.split(" ")[0].upper()
+                current_base_dir = f"{self.__device_target_dir}\\{current_cam} {current_mode}"
+
+                state_list, animations = self.__execute_interaction_with_device(
+                    current_base_dir, command, command_name_full
+                )
+
+                print(command["command_name"], animations)
+
+                self.__join_sleep_time(labeled_icons, "CLICK_MENU", command_name_upper, animations[2])
+
+                opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
+                    state_list,
+                    f"{current_base_dir}\\{command_name_full}",
+                    animations[1],
+                )
+
+                print(f"Labeling options in {command_name_full} for config {current_cam} {current_mode}...")
+
+                self.__process_image.process_screen_step_by_step(
+                    labeled_icons, opened_menu_img_path, current_cam, current_mode
+                )
+
+                input(
+                    f"Check if the device has the camera open with the configuration: Cam={current_cam}, Mode={current_mode}\nPress enter after check..."
+                )
+
+            input(
+                f"Check if the device has the camera open with the configuration: Cam=Main, Mode=Photo\nPress enter after check..."
+            )
 
     def calculate_menu_actions_animations_in_each_group(self, labeled_icons, groups):
         for g in groups:
@@ -259,78 +369,6 @@ class ProcessFrames:
                     else:
                         animations = animations[1]
 
-                    prev_value = 0
-                    if "CLICK_ACTION" in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]:
-                        prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][
-                            "CLICK_ACTION"
-                        ]
-
-                    labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]["CLICK_ACTION"] = (
-                        max(prev_value, round(animations[2] * 1.5 - menu_sleep_time, 4))
-                    )
+                    self.__join_sleep_time(labeled_icons, command_name_upper, animations[2] * 1.5 - menu_sleep_time)
 
         return labeled_icons
-
-    def cam_and_mode_gradle_remapping(self, labeled_icons, current_cam, current_mode):
-
-        input(
-            f"Check if the device has the camera open with the configuration: Cam={current_cam}, Mode={current_mode}\n Press enter after check"
-        )
-
-        for c in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
-            if c != current_cam:
-                command_target_cam_name = f"cam {c}"
-                command_target_cam = get_command_in_command_list(
-                    labeled_icons["COMMANDS"],
-                    command_target_cam_name,
-                    current_cam,
-                    current_mode,
-                )
-                state_list, animations = self.__execute_interaction_with_device(command_target_cam)
-
-                print(command_target_cam["command_name"], animations)
-
-                command_name_full = command_target_cam["command_name"]
-                command_name_upper = command_name_full.split(" ")[0].upper()
-
-                self.__join_sleep_time(labeled_icons, command_name_upper, animations[2])
-
-                opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
-                    state_list, command_name_full, animations[1]
-                )
-
-                labeled_icons = self.__process_image.process_screen_step_by_step(
-                    labeled_icons, opened_menu_img_path, c, current_mode
-                )
-
-                input(
-                    f"Check if the device has the camera open with the configuration: Cam={c}, Mode={current_mode}\n Press enter after check"
-                )
-
-            for m in self.__mapping_requirements["STATE_REQUIRES"]["MODE"]:
-                if m != current_mode:
-                    command_target_mode_name = f"mode {m}"
-                    command_target_mode = get_command_in_command_list(
-                        labeled_icons["COMMANDS"], command_target_mode_name, c, current_mode
-                    )
-
-                    state_list, animations = self.__execute_interaction_with_device(command_target_mode)
-
-                    print(command_target_mode["command_name"], animations)
-
-                    command_name_full = command_target_mode["command_name"]
-                    command_name_upper = command_name_full.split(" ")[0].upper()
-
-                    self.__join_sleep_time(labeled_icons, command_name_upper, animations[2])
-
-                    opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
-                        state_list, command_name_full, animations[1]
-                    )
-
-                    labeled_icons = self.__process_image.process_screen_step_by_step(
-                        labeled_icons, opened_menu_img_path, c, m
-                    )
-
-                    input(
-                        f"Check if the device has the camera open with the configuration: Cam={c}, Mode={current_mode}\n Press enter after check"
-                    )
