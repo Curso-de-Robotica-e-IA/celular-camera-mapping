@@ -226,11 +226,15 @@ class DeviceMappingCLI:
 
             self.flush_current_step_progress()
 
+        print("Write final output ...")
+        write_output_in_json(self.__labeled_icons, self.__device_output_dir, f"{self.__device_target}_mapping")
+
 
 if __name__ == "__main__":
-    start_step = 3
-    cur_device_name = "Samsung-A34"
-    device_ip_port = "192.168.155.1:42007"
+    cur_device_name = input("Device brand-name:")
+    device_ip_port = input("Device IP:Port")
+    start_step = input("Step number for start mapping:")
+
     cli_app = DeviceMappingCLI(cur_device_name, device_ip_port, start_step)
 
     cli_app.main_loop()

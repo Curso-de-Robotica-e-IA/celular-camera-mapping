@@ -274,6 +274,7 @@ class ProcessFrames:
         for g in groups:
 
             # to requirements
+            print("Goto require state")
             for comm_to in g["to_requirements"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
@@ -320,9 +321,22 @@ class ProcessFrames:
 
     def calculate_menu_actions_animations_in_each_group(self, labeled_icons, groups):
         for g in groups:
+
+            # to requirements
+            print("Goto require state")
+            for comm_to in g["to_requirements"]:
+                self.__device.click_by_coordinates_in_device(comm_to)
+                command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
+                    "CLICK_ACTION"
+                ]
+                sleep(sleep_time)
+
             current_cam = g["requirements"]["cam"]
             current_mode = g["requirements"]["mode"]
             dir_for_mode = f"{current_cam} {current_mode}"
+
+            print(f"Camera state Cam={current_cam}, Mode={current_mode}")
 
             for command in g["commands"]:
                 full_command_name = command["command_name"]
@@ -340,10 +354,31 @@ class ProcessFrames:
                         options_for_this_menu.append(item)
 
                 for action in options_for_this_menu:
+                    full_child_name = action["command_name"]
+                    print(f"Apply Transition: {full_command_name} -> {full_child_name}")
 
                     current_target_path = f"{self.__device_target_dir}\\{dir_for_mode}\\{full_command_name}"
+                    file_name = full_child_name.replace(":", "_")
+                    record_len_s = 5
 
-                    file_name = action["command_name"].replace(":", "_")
+                    self.__device.start_record_in_device(record_len_s)
+                    sleep(1)
+                    record_len_s -= 1
+
+                    self.__device.click_by_coordinates_in_device(command)
+
+                    sleep_time_menu = labeled_icons["COMMAND_CHANGE_SEQUENCE"][(command_name_type.upper())][
+                        "COMMAND_SLEEPS"
+                    ]["CLICK_MENU"]
+                    sleep(sleep_time_menu)
+
+                    self.__device.click_by_coordinates_in_device(action)
+
+                    sleep(record_len_s * 1.1)
+                    self.__device.get_video_in_device(current_target_path, file_name)
+                    self.__split_frames(current_target_path, file_name)
+                    self.__device.delete_video_in_device()
+                    sleep(2)
 
                     frames_diff = self.__compare_frames(current_target_path, file_name)
                     moving_avg = self.__calculate_moving_average(frames_diff, 4)
@@ -369,6 +404,18 @@ class ProcessFrames:
                     else:
                         animations = animations[1]
 
-                    self.__join_sleep_time(labeled_icons, command_name_upper, animations[2] * 1.5 - menu_sleep_time)
+                    self.__join_sleep_time(
+                        labeled_icons, "CLICK_ACTION", command_name_upper, animations[2] * 1.5 - menu_sleep_time
+                    )
+
+            # return_to_base
+            print("Return to base state")
+            for comm_to in g["return_to_base"]:
+                self.__device.click_by_coordinates_in_device(comm_to)
+                command_type_upper = comm_to["command_name"].upper().split(" ")[0]
+                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
+                    "CLICK_ACTION"
+                ]
+                sleep(sleep_time)
 
         return labeled_icons
