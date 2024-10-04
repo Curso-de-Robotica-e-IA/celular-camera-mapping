@@ -1,4 +1,5 @@
 import math
+
 import cv2
 import numpy as np
 
@@ -7,7 +8,6 @@ from utils import show_image_in_thread
 
 
 class ProcessImage:
-
     def __init__(self, size_in_screen, mapping_requirements) -> None:
         self.__size_in_screen = size_in_screen
         self.__mapping_requirements = mapping_requirements
@@ -207,7 +207,6 @@ class ProcessImage:
         return labeled_icons
 
     def process_screen_step_by_step(self, labeled_icons, image_path, current_cam, current_mode):
-
         image = cv2.imread(image_path)
 
         detect_boxes_from_contours = self.__find_contours_in_image(image)

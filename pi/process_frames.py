@@ -2,16 +2,16 @@ import glob
 import os
 import shutil
 from time import sleep
-from sewar.full_ref import mse
+
 import cv2
+from sewar.full_ref import mse
 
 from device import Device
 from pi.process_image import ProcessImage
-from utils import create_or_replace_dir, get_command_in_command_list
+from utils import get_command_in_command_list
 
 
 class ProcessFrames:
-
     def __init__(self, device_target_dir, mapping_requirements, device: Device, process_img: ProcessImage) -> None:
         self.__device = device
         self.__device_target_dir = device_target_dir
@@ -208,7 +208,6 @@ class ProcessFrames:
         return state_list, animations
 
     def cam_and_mode_gradle_remapping(self, labeled_icons, current_cam, current_mode):
-
         for c in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
             if c != current_cam:
                 command_target_cam_name = f"cam {c}"
@@ -270,9 +269,7 @@ class ProcessFrames:
                     )
 
     def mapping_menu_actions_in_each_group(self, labeled_icons, groups):
-
         for g in groups:
-
             # to requirements
             print("Goto require state")
             for comm_to in g["to_requirements"]:
@@ -316,12 +313,11 @@ class ProcessFrames:
                 )
 
             input(
-                f"Check if the device has the camera open with the configuration: Cam=Main, Mode=Photo\nPress enter after check..."
+                "Check if the device has the camera open with the configuration: Cam=Main, Mode=Photo\nPress enter after check..."
             )
 
     def calculate_menu_actions_animations_in_each_group(self, labeled_icons, groups):
         for g in groups:
-
             # to requirements
             print("Goto require state")
             for comm_to in g["to_requirements"]:
@@ -347,7 +343,7 @@ class ProcessFrames:
                 for item in labeled_icons["COMMANDS"]:
                     if (
                         command_name_type in item["command_name"]
-                        and (not full_command_name in item["command_name"])
+                        and (full_command_name not in item["command_name"])
                         and current_cam in item["requirements"]["cam"]
                         and current_mode in item["requirements"]["mode"]
                     ):

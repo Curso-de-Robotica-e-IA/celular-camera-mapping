@@ -22,22 +22,6 @@ class Device:
         else:
             return None
 
-    def screen_shot(self):
-        subprocess.run(
-            [
-                "adb",
-                "-s",
-                self.__ip_port,
-                "shell",
-                "screencap",
-                "-p",
-                "/sdcard/DCIM/Camera/screencap.png",
-            ]
-        )
-
-    def get_screen_image(self, path_target):
-        subprocess.run(["adb", "-s", self.__ip_port, "pull", "/sdcard/DCIM/Camera/screencap.png", path_target])
-
     def connect_device(self, ip_port):
         self.__ip_port = ip_port
         subprocess.run(f"adb connect {self.__ip_port}")
@@ -59,7 +43,6 @@ class Device:
         )
 
     def start_record_in_device(self, record_time_s):
-
         obj = Thread(target=self.record_command_terminal, args=[record_time_s])
         obj.start()
 
@@ -91,7 +74,7 @@ class Device:
                 "-s",
                 self.__ip_port,
                 "pull",
-                f"/sdcard/DCIM/Camera/screencap.png",
+                "/sdcard/DCIM/Camera/screencap.png",
                 f"{path}\\screencap_{tag}.png",
             ]
         )

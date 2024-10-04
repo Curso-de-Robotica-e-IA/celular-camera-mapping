@@ -1,9 +1,11 @@
 import os
 from time import sleep
+
 from device import Device
 from pi.process_frames import ProcessFrames
 from pi.process_image import ProcessImage
-from utils import create_or_replace_dir, load_labeled_icons, write_output_in_json, get_command_in_command_list
+from utils import (create_or_replace_dir, get_command_in_command_list,
+                   load_labeled_icons, write_output_in_json)
 
 
 class DeviceMappingCLI:
@@ -208,13 +210,11 @@ class DeviceMappingCLI:
         self.__process_frames.calculate_menu_actions_animations_in_each_group(self.__labeled_icons, mapping_groups)
 
     def main_loop(self):
-
         self.__device.start_server()
         self.__device.connect_device(self.__ip_port)
         sleep(5)
 
         for id in range(self.__current_step, self.__total_steps):
-
             method_name = f"step_{id}"
 
             print("Execute ", method_name)
