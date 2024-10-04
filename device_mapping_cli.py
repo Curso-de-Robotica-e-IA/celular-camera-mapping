@@ -231,9 +231,9 @@ class DeviceMappingCLI:
 
 
 if __name__ == "__main__":
-    cur_device_name = input("Device brand-name:")
-    device_ip_port = input("Device IP:Port")
-    start_step = input("Step number for start mapping:")
+    cur_device_name = input("Device brand-name: ")
+    device_ip_port = input("Device IP:Port: ")
+    start_step = int(input("Step number for start mapping: "))
 
     cli_app = DeviceMappingCLI(cur_device_name, device_ip_port, start_step)
 
