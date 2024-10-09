@@ -8,6 +8,8 @@ from threading import Thread
 class Device:
     def __init__(self):
         self.__ip_port = None
+        self.__device_video_path = "/sdcard/video.mp4"
+        self.__device_screencap_path = "/sdcard/DCIM/Camera/screencap.png"
 
     def get_device_dimensions(self) -> tuple[int, int] | None:
         result = subprocess.run(["adb", "-s", self.__ip_port, "shell", "wm", "size"], capture_output=True, text=True)
@@ -34,7 +36,7 @@ class Device:
                 self.__ip_port,
                 "shell",
                 "screenrecord",
-                "/sdcard/video.mp4",
+                self.__device_video_path,
                 f"--time-limit={record_time_s}",
             ]
         )
@@ -56,13 +58,13 @@ class Device:
                 "-s",
                 self.__ip_port,
                 "pull",
-                "/sdcard/video.mp4",
+                self.__device_video_path,
                 str(full_path.joinpath("video.mp4")),
             ]
         )
 
     def delete_video_in_device(self) -> None:
-        subprocess.run(["adb", "-s", self.__ip_port, "shell", "rm", "/sdcard/video.mp4"])
+        subprocess.run(["adb", "-s", self.__ip_port, "shell", "rm", self.__device_video_path])
 
     def get_screen_image(self, path: Path, tag: str) -> None:
         path.joinpath
@@ -72,7 +74,7 @@ class Device:
                 "-s",
                 self.__ip_port,
                 "pull",
-                "/sdcard/DCIM/Camera/screencap.png",
+                self.__device_screencap_path,
                 str(path.joinpath(f"screencap_{tag}.png")),
             ]
         )
@@ -86,7 +88,7 @@ class Device:
                 "shell",
                 "screencap",
                 "-p",
-                "/sdcard/DCIM/Camera/screencap.png",
+                self.__device_screencap_path,
             ]
         )
 
