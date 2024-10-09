@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -8,14 +9,14 @@ from utils import show_image_in_thread
 
 
 class ProcessImage:
-    def __init__(self, size_in_screen, mapping_requirements) -> None:
+    def __init__(self, size_in_screen: int, mapping_requirements: dict) -> None:
         self.__size_in_screen = size_in_screen
         self.__mapping_requirements = mapping_requirements
 
-    def __merge_contours(self, contour1, contour2):
+    def __merge_contours(self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike) -> cv2.typing.MatLike:
         return np.concatenate((contour1, contour2), axis=0)
 
-    def __calculate_contour_distance(self, contour1, contour2):
+    def __calculate_contour_distance(self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike) -> int:
         x1, y1, w1, h1 = cv2.boundingRect(contour1)
         c_x1 = x1 + w1 / 2
         c_y1 = y1 + h1 / 2
@@ -26,7 +27,7 @@ class ProcessImage:
 
         return max(abs(c_x1 - c_x2) - (w1 + w2) / 2, abs(c_y1 - c_y2) - (h1 + h2) / 2)
 
-    def __agglomerative_cluster(self, contours, threshold_distance):
+    def __agglomerative_cluster(self, contours: cv2.typing.MatLike, threshold_distance: int) -> cv2.typing.MatLike:
         current_contours = contours
         while len(current_contours) > 1:
             min_distance = None
@@ -45,13 +46,13 @@ class ProcessImage:
             if min_distance < threshold_distance:
                 index1, index2 = min_coordinate
                 current_contours[index1] = self.__merge_contours(current_contours[index1], current_contours[index2])
-                del current_contours[index2]
+                current_contours.pop(index2)
             else:
                 break
 
         return current_contours
 
-    def __find_contours_in_image(self, image):
+    def __find_contours_in_image(self, image: cv2.typing.MatLike) -> list[ClickableBox]:
         edged = cv2.Canny(image, 30, 200)
         contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -77,7 +78,9 @@ class ProcessImage:
 
         return detect_list
 
-    def __show_clickable_itens(self, image, detect_box, size_in_screen):
+    def __show_clickable_itens(
+        self, image: cv2.typing.MatLike, detect_box: list[ClickableBox], size_in_screen: int
+    ) -> None:
         new_image = image.copy()
         for box in detect_box:
             if len(box.label) > 1:
@@ -111,14 +114,14 @@ class ProcessImage:
 
     def __process_detection_in_screen_step_by_step(
         self,
-        base_image,
-        detect_box,
-        size_in_screen,
-        command_to_mapping,
-        labeled_icons,
-        current_cam,
-        current_mode,
-    ):
+        base_image: cv2.typing.MatLike,
+        detect_box: list[ClickableBox],
+        size_in_screen: int,
+        command_to_mapping: dict,
+        labeled_icons: dict,
+        current_cam: str,
+        current_mode: str,
+    ) -> None:
         scale = size_in_screen / base_image.shape[0]
         for box in detect_box:
             image = base_image.copy()
@@ -186,10 +189,10 @@ class ProcessImage:
 
                         command["requirements"] = {"cam": current_cam, "mode": current_mode}
 
-                        apply_to = "on/off"
+                        apply_to = ["ON", "OFF"]
 
-                        for t in apply_to.split("/"):
-                            value = f"COMMAND_SEQUENCE {(t.upper())}"
+                        for flow_type in apply_to:
+                            value = f"COMMAND_SEQUENCE {flow_type}"
                             if not (
                                 command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
                                 in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value]
@@ -204,16 +207,16 @@ class ProcessImage:
                 except KeyboardInterrupt:
                     print("\n\nClean selection for current item\n")
 
-        return labeled_icons
-
-    def process_screen_step_by_step(self, labeled_icons, image_path, current_cam, current_mode):
-        image = cv2.imread(image_path)
+    def process_screen_step_by_step(
+        self, labeled_icons: dict, image_path: Path, current_cam: str, current_mode: str
+    ) -> None:
+        image = cv2.imread(str(image_path))
 
         detect_boxes_from_contours = self.__find_contours_in_image(image)
 
         self.__show_clickable_itens(image, detect_boxes_from_contours, self.__size_in_screen)
 
-        labeled_icons = self.__process_detection_in_screen_step_by_step(
+        self.__process_detection_in_screen_step_by_step(
             image,
             detect_boxes_from_contours,
             self.__size_in_screen,

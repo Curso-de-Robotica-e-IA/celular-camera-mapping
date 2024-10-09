@@ -10,7 +10,7 @@ class ClickableBox:
     max_point: Point
     centroid: Point
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "label": self.label,
             "min_point": {"x": self.min_point.x, "y": self.min_point.y},
@@ -19,7 +19,7 @@ class ClickableBox:
         }
 
     @staticmethod
-    def from_dict(dict_elem):
+    def from_dict(dict_elem: dict):
         return ClickableBox(
             dict_elem["label"],
             Point(dict_elem["min_point"]["x"], dict_elem["min_point"]["y"]),

@@ -1,6 +1,4 @@
-import glob
-import os
-import shutil
+from pathlib import Path
 from time import sleep
 
 import cv2
@@ -8,11 +6,13 @@ from sewar.full_ref import mse
 
 from device import Device
 from pi.process_image import ProcessImage
-from utils import get_command_in_command_list
+from utils import create_or_replace_dir, get_command_in_command_list
 
 
 class ProcessFrames:
-    def __init__(self, device_target_dir, mapping_requirements, device: Device, process_img: ProcessImage) -> None:
+    def __init__(
+        self, device_target_dir: Path, mapping_requirements: dict, device: Device, process_img: ProcessImage
+    ) -> None:
         self.__device = device
         self.__device_target_dir = device_target_dir
         self.__process_image = process_img
@@ -22,21 +22,18 @@ class ProcessFrames:
         self.__LOW_STATE = 0
         self.__MIN_ANIMATION_TIME_S = 0.3
 
-    def __split_frames(self, base_path, folder_name):
-        full_path = f"{base_path}\\{folder_name}"
+    def __split_frames(self, base_path: Path, folder_name: str) -> None:
+        full_path = base_path.joinpath(folder_name)
 
         vidObj = cv2.VideoCapture(
-            f"{full_path}\\video.mp4",
+            str(full_path.joinpath("video.mp4")),
         )
 
         count = 0
         success = 1
 
-        out_full_path = f"{base_path}\\{folder_name}\\frames"
-        if os.path.exists(out_full_path):
-            shutil.rmtree(out_full_path)
-
-        os.mkdir(out_full_path)
+        out_full_path = full_path.joinpath("frames")
+        create_or_replace_dir(out_full_path)
 
         while success:
             # vidObj object calls read
@@ -44,33 +41,35 @@ class ProcessFrames:
             success, image = vidObj.read()
             # Saves the frames with frame-count
             if success:
-                cv2.imwrite(f"{out_full_path}\\frame_{count}.png", image)
+                cv2.imwrite(str(out_full_path.joinpath(f"frame_{count}.png")), image)
                 count += 1
 
-    def __get_fps_for_video(self, base_path, folder_name):
-        full_path = f"{base_path}\\{folder_name}"
+    def __get_fps_for_video(self, base_path: Path, folder_name: str) -> int:
+        full_path = base_path.joinpath(folder_name)
 
         vidObj = cv2.VideoCapture(
-            f"{full_path}\\video.mp4",
+            str(full_path.joinpath("video.mp4")),
         )
 
         return vidObj.get(cv2.CAP_PROP_FPS)
 
-    def __compare_frames(self, device_target_dir, command_name):
+    def __compare_frames(self, device_target_dir: Path, command_name: str) -> list[float]:
         frame_compare = []
 
-        file_images_list = glob.glob(f"{device_target_dir}\\{command_name}\\frames\\*.png")
+        file_images_dir = device_target_dir.joinpath(command_name, "frames")
 
-        def sort_by_number(file_name):
-            return int(file_name.split("\\")[-1].split(".")[0].split("_")[-1])
+        file_images_list = list(file_images_dir.rglob("*.png"))
+
+        def sort_by_number(file_name: Path):
+            return int(file_name.parts.split(".")[0].split("_")[-1])
 
         file_images_list = sorted(file_images_list, key=sort_by_number)
 
         if len(file_images_list) > 1:
-            base_image = cv2.imread(file_images_list[0])
+            base_image = cv2.imread(str(file_images_list[0]))
 
         for i in range(1, len(file_images_list)):
-            new_image = cv2.imread(file_images_list[i])
+            new_image = cv2.imread(str(file_images_list[i]))
 
             frame_compare.append(mse(base_image, new_image))
 
@@ -78,7 +77,7 @@ class ProcessFrames:
 
         return frame_compare
 
-    def __calculate_moving_average(self, frame_compare, window_size):
+    def __calculate_moving_average(self, frame_compare: list[float], window_size: int) -> list[float]:
         i = 0
         # Initialize an empty list to store moving averages
         moving_averages = []
@@ -106,10 +105,10 @@ class ProcessFrames:
 
         return moving_averages
 
-    def __calculate_threshold_for_frames(self, frame_compare):
+    def __calculate_threshold_for_frames(self, frame_compare: list[float]) -> int:
         return sum(frame_compare) / len(frame_compare)
 
-    def __calculate_states(self, state_list, fps_video):
+    def __calculate_states(self, state_list: list[int], fps_video: int) -> list[tuple[int, int, float]]:
         lst_state = self.__LOW_STATE
         start = None
         animation_list = []
@@ -133,7 +132,7 @@ class ProcessFrames:
 
         return animation_list
 
-    def __state_buffer(self, frame_compare, try_to_change):
+    def __state_buffer(self, frame_compare: list[float], try_to_change: int) -> tuple[list[float], list[float]]:
         state = 0
         count = 0
 
@@ -167,7 +166,9 @@ class ProcessFrames:
 
         return state_list, threshold_ref_list
 
-    def __join_sleep_time(self, labeled_icons, type_command, command_name_upper, sleep_time):
+    def __join_sleep_time(
+        self, labeled_icons: dict, type_command: str, command_name_upper: str, sleep_time: float
+    ) -> None:
         prev_value = 0
         if type_command in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]:
             prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][type_command]
@@ -176,14 +177,18 @@ class ProcessFrames:
             prev_value, round(sleep_time * 1.2, 2)
         )
 
-    def __calculate_path_for_frame_with_menu_open(self, state_list, path_base, open_animation_time):
+    def __calculate_path_for_frame_with_menu_open(
+        self, state_list: list[int], path_base: Path, open_animation_time: float
+    ) -> Path:
         opened_menu_frame_idx = open_animation_time + (len(state_list) - 1 - open_animation_time) // 2
 
         opened_menu_frame_idx = min(opened_menu_frame_idx, open_animation_time + 5)
 
-        return f"{path_base}\\frames\\frame_{opened_menu_frame_idx}.png"
+        return path_base.joinpath("frames", f"frame_{opened_menu_frame_idx}.png")
 
-    def __execute_interaction_with_device(self, path_base, command_target_cam, file_name):
+    def __execute_interaction_with_device(
+        self, path_base: Path, command_target_cam: str, file_name: str
+    ) -> tuple[list[int], tuple[int, int, float]]:
         record_len_s = 5
         self.__device.start_record_in_device(record_len_s)
         sleep(1)
@@ -207,17 +212,17 @@ class ProcessFrames:
 
         return state_list, animations
 
-    def cam_and_mode_gradle_remapping(self, labeled_icons, current_cam, current_mode):
-        for c in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
-            if c != current_cam:
-                command_target_cam_name = f"cam {c}"
+    def cam_and_mode_gradle_remapping(self, labeled_icons: dict, reference_cam: str, reference_mode: str) -> None:
+        for cur_cam in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
+            if cur_cam != reference_cam:
+                command_target_cam_name = f"cam {cur_cam}"
                 command_target_cam = get_command_in_command_list(
                     labeled_icons["COMMANDS"],
                     command_target_cam_name,
-                    current_cam,
-                    current_mode,
+                    reference_cam,
+                    reference_mode,
                 )
-                file_name = f"{c} {current_mode}"
+                file_name = f"{cur_cam} {reference_mode}"
                 state_list, animations = self.__execute_interaction_with_device(
                     self.__device_target_dir, command_target_cam, file_name
                 )
@@ -230,23 +235,25 @@ class ProcessFrames:
                 self.__join_sleep_time(labeled_icons, "CLICK_ACTION", command_name_upper, animations[2])
 
                 opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
-                    state_list, f"{self.__device_target_dir}\\{file_name}", animations[1]
+                    state_list, self.__device_target_dir.joinpath(file_name), animations[1]
                 )
 
-                self.__process_image.process_screen_step_by_step(labeled_icons, opened_menu_img_path, c, current_mode)
+                self.__process_image.process_screen_step_by_step(
+                    labeled_icons, opened_menu_img_path, cur_cam, reference_mode
+                )
 
                 input(
-                    f"Check if the device has the camera open with the configuration: Cam={c}, Mode={current_mode}\nPress enter after check"
+                    f"Check if the device has the camera open with the configuration: Cam={cur_cam}, Mode={reference_mode}\nPress enter after check"
                 )
 
-            for m in self.__mapping_requirements["STATE_REQUIRES"]["MODE"]:
-                if m != current_mode:
-                    command_target_mode_name = f"mode {m}"
+            for cur_mode in self.__mapping_requirements["STATE_REQUIRES"]["MODE"]:
+                if cur_mode != reference_mode:
+                    command_target_mode_name = f"mode {cur_mode}"
                     command_target_mode = get_command_in_command_list(
-                        labeled_icons["COMMANDS"], command_target_mode_name, c, current_mode
+                        labeled_icons["COMMANDS"], command_target_mode_name, cur_cam, reference_mode
                     )
 
-                    file_name = f"{c} {m}"
+                    file_name = f"{cur_cam} {cur_mode}"
                     state_list, animations = self.__execute_interaction_with_device(
                         self.__device_target_dir, command_target_mode, file_name
                     )
@@ -259,20 +266,22 @@ class ProcessFrames:
                     self.__join_sleep_time(labeled_icons, command_name_upper, animations[2])
 
                     opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
-                        state_list, f"{self.__device_target_dir}\\{file_name}", animations[1]
+                        state_list, self.__device_target_dir.joinpath(file_name), animations[1]
                     )
 
-                    self.__process_image.process_screen_step_by_step(labeled_icons, opened_menu_img_path, c, m)
+                    self.__process_image.process_screen_step_by_step(
+                        labeled_icons, opened_menu_img_path, cur_cam, cur_mode
+                    )
 
                     input(
-                        f"Check if the device has the camera open with the configuration: Cam={c}, Mode={current_mode}\nPress enter after check..."
+                        f"Check if the device has the camera open with the configuration: Cam={cur_cam}, Mode={reference_mode}\nPress enter after check..."
                     )
 
-    def mapping_menu_actions_in_each_group(self, labeled_icons, groups):
-        for g in groups:
+    def mapping_menu_actions_in_each_group(self, labeled_icons: dict, groups: dict):
+        for cur_group in groups:
             # to requirements
             print("Goto require state")
-            for comm_to in g["to_requirements"]:
+            for comm_to in cur_group["to_requirements"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
                 sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
@@ -280,13 +289,13 @@ class ProcessFrames:
                 ]
                 sleep(sleep_time)
 
-            current_cam = g["requirements"]["cam"]
-            current_mode = g["requirements"]["mode"]
+            current_cam = cur_group["requirements"]["cam"]
+            current_mode = cur_group["requirements"]["mode"]
 
-            for command in g["commands"]:
+            for command in cur_group["commands"]:
                 command_name_full = command["command_name"]
                 command_name_upper = command_name_full.split(" ")[0].upper()
-                current_base_dir = f"{self.__device_target_dir}\\{current_cam} {current_mode}"
+                current_base_dir = self.__device_target_dir.joinpath(f"{current_cam} {current_mode}")
 
                 state_list, animations = self.__execute_interaction_with_device(
                     current_base_dir, command, command_name_full
@@ -298,7 +307,7 @@ class ProcessFrames:
 
                 opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
                     state_list,
-                    f"{current_base_dir}\\{command_name_full}",
+                    current_base_dir.joinpath(command_name_full),
                     animations[1],
                 )
 
@@ -316,11 +325,11 @@ class ProcessFrames:
                 "Check if the device has the camera open with the configuration: Cam=Main, Mode=Photo\nPress enter after check..."
             )
 
-    def calculate_menu_actions_animations_in_each_group(self, labeled_icons, groups):
-        for g in groups:
+    def calculate_menu_actions_animations_in_each_group(self, labeled_icons: dict, groups: dict) -> None:
+        for cur_group in groups:
             # to requirements
             print("Goto require state")
-            for comm_to in g["to_requirements"]:
+            for comm_to in cur_group["to_requirements"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
                 sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
@@ -328,13 +337,13 @@ class ProcessFrames:
                 ]
                 sleep(sleep_time)
 
-            current_cam = g["requirements"]["cam"]
-            current_mode = g["requirements"]["mode"]
+            current_cam = cur_group["requirements"]["cam"]
+            current_mode = cur_group["requirements"]["mode"]
             dir_for_mode = f"{current_cam} {current_mode}"
 
             print(f"Camera state Cam={current_cam}, Mode={current_mode}")
 
-            for command in g["commands"]:
+            for command in cur_group["commands"]:
                 full_command_name = command["command_name"]
                 command_name_type = full_command_name.split(" ")[0]
 
@@ -353,7 +362,7 @@ class ProcessFrames:
                     full_child_name = action["command_name"]
                     print(f"Apply Transition: {full_command_name} -> {full_child_name}")
 
-                    current_target_path = f"{self.__device_target_dir}\\{dir_for_mode}\\{full_command_name}"
+                    current_target_path = self.__device_target_dir.joinpath(dir_for_mode, full_command_name)
                     file_name = full_child_name.replace(":", "_")
                     record_len_s = 5
 
@@ -406,12 +415,10 @@ class ProcessFrames:
 
             # return_to_base
             print("Return to base state")
-            for comm_to in g["return_to_base"]:
+            for comm_to in cur_group["return_to_base"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
                 sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
                     "CLICK_ACTION"
                 ]
                 sleep(sleep_time)
-
-        return labeled_icons
