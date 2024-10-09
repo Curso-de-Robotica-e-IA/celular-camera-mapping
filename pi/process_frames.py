@@ -78,14 +78,14 @@ class ProcessFrames:
         return frame_compare
 
     def __calculate_moving_average(self, frame_compare: list[float], window_size: int) -> list[float]:
-        i = 0
+
         # Initialize an empty list to store moving averages
         moving_averages = []
 
         # Loop through the array to consider
         # every window of size 3
         lst_val = None
-        while i < len(frame_compare) - window_size + 1:
+        for i in range(len(frame_compare) - window_size + 1):
             # Store elements from i to i+window_size
             # in list to get the current window
             window = frame_compare[i : i + window_size]
@@ -97,8 +97,6 @@ class ProcessFrames:
             # window in moving average list
             moving_averages.append(window_average)
             lst_val = window_average
-            # Shift window to right by one position
-            i += 1
 
         for i in range(window_size):
             moving_averages.append(lst_val)
