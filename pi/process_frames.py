@@ -78,7 +78,6 @@ class ProcessFrames:
         return frame_compare
 
     def __calculate_moving_average(self, frame_compare: list[float], window_size: int) -> list[float]:
-
         # Initialize an empty list to store moving averages
         moving_averages = []
 
