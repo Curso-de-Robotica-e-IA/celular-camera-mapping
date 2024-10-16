@@ -1,10 +1,9 @@
 from pathlib import Path
 
 from device import Device
-from pi.process_frames import ProcessFrames
-from pi.process_image import ProcessImage
-from utils import (create_or_replace_dir, get_command_in_command_list,
-                   load_labeled_icons, write_output_in_json)
+from process.frames import ProcessFrames
+from process.image import ProcessImage
+from utils import create_or_replace_dir, get_command_in_command_list, load_labeled_icons, write_output_in_json
 
 
 class DeviceMappingCLI:

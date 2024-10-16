@@ -5,7 +5,7 @@ import cv2
 from sewar.full_ref import mse
 
 from device import Device
-from pi.process_image import ProcessImage
+from process.image import ProcessImage
 from utils import create_or_replace_dir, get_command_in_command_list
 
 

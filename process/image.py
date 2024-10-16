@@ -18,13 +18,43 @@ class ProcessImage:
     """
 
     def __init__(self, size_in_screen: int, mapping_requirements: dict) -> None:
+        """
+        Initialize the ProcessImage object.
+
+        Args:
+            size_in_screen (int): The size of the image on the screen.
+            mapping_requirements (dict): A dictionary containing the mapping requirements.
+        """
+
         self.__size_in_screen = size_in_screen
         self.__mapping_requirements = mapping_requirements
 
     def __merge_contours(self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike) -> cv2.typing.MatLike:
+        """
+        Merge two contours into one.
+
+        Args:
+            contour1 (cv2.typing.MatLike): The first contour.
+            contour2 (cv2.typing.MatLike): The second contour.
+
+        Returns:
+            cv2.typing.MatLike: The merged contour.
+        """
+
         return np.concatenate((contour1, contour2), axis=0)
 
     def __calculate_contour_distance(self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike) -> int:
+        """
+        Calculate the distance between two contours.
+
+        Args:
+            contour1 (cv2.typing.MatLike): The first contour.
+            contour2 (cv2.typing.MatLike): The second contour.
+
+        Returns:
+            int: The calculated distance between the two contours.
+        """
+
         x1, y1, w1, h1 = cv2.boundingRect(contour1)
         c_x1 = x1 + w1 / 2
         c_y1 = y1 + h1 / 2
@@ -36,6 +66,17 @@ class ProcessImage:
         return max(abs(c_x1 - c_x2) - (w1 + w2) / 2, abs(c_y1 - c_y2) - (h1 + h2) / 2)
 
     def __agglomerative_cluster(self, contours: cv2.typing.MatLike, threshold_distance: int) -> cv2.typing.MatLike:
+        """
+        Perform agglomerative clustering to merge contours that are within a certain distance of each other.
+
+        Args:
+            contours (cv2.typing.MatLike): A list of contours.
+            threshold_distance (int): The distance threshold for merging contours.
+
+        Returns:
+            cv2.typing.MatLike: The clustered contours.
+        """
+
         current_contours = contours
         while len(current_contours) > 1:
             min_distance = None
@@ -61,6 +102,16 @@ class ProcessImage:
         return current_contours
 
     def __find_contours_in_image(self, image: cv2.typing.MatLike) -> list[ClickableBox]:
+        """
+        Find contours in an image and return a list of clickable boxes.
+
+        Args:
+            image (cv2.typing.MatLike): The input image.
+
+        Returns:
+            list[ClickableBox]: A list of clickable boxes derived from the contours.
+        """
+
         edged = cv2.Canny(image, 30, 200)
         contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -89,6 +140,15 @@ class ProcessImage:
     def __show_clickable_itens(
         self, image: cv2.typing.MatLike, detect_box: list[ClickableBox], size_in_screen: int
     ) -> None:
+        """
+        Display clickable items on the image.
+
+        Args:
+            image (cv2.typing.MatLike): The input image.
+            detect_box (list[ClickableBox]): A list of detected clickable boxes.
+            size_in_screen (int): The size of the image on the screen.
+        """
+
         new_image = image.copy()
         for box in detect_box:
             if len(box.label) > 1:
@@ -130,6 +190,16 @@ class ProcessImage:
         current_cam: str,
         current_mode: str,
     ) -> None:
+        """
+        Process an image for clickable regions and label them step by step.
+
+        Args:
+        - labeled_icons (dict): A dictionary to store labeled icons and commands.
+        - image_path (Path): The path to the image file.
+        - current_cam (str): The current camera being used.
+        - current_mode (str): The current mode of the system.
+        """
+
         scale = size_in_screen / base_image.shape[0]
         for box in detect_box:
             image = base_image.copy()
@@ -218,6 +288,16 @@ class ProcessImage:
     def process_screen_step_by_step(
         self, labeled_icons: dict, image_path: Path, current_cam: str, current_mode: str
     ) -> None:
+        """
+        Process an image for clickable regions and label them step by step.
+
+        Parameters:
+        - labeled_icons (dict): A dictionary to store labeled icons and commands.
+        - image_path (Path): The path to the image file.
+        - current_cam (str): The current camera being used.
+        - current_mode (str): The current mode of the system.
+        """
+
         image = cv2.imread(str(image_path))
 
         detect_boxes_from_contours = self.__find_contours_in_image(image)
