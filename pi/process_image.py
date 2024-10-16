@@ -9,6 +9,14 @@ from utils import show_image_in_thread
 
 
 class ProcessImage:
+    """
+    The ProcessImage class is designed to handle image processing tasks,
+    particularly for detecting and managing clickable regions within an image.
+    It is primarily focused on detecting contours (shapes) in the image and providing step-by-step
+    interactions for user input, which helps to label and map detected regions. Below is a description
+    of the key functionalities provided by this class:
+    """
+
     def __init__(self, size_in_screen: int, mapping_requirements: dict) -> None:
         self.__size_in_screen = size_in_screen
         self.__mapping_requirements = mapping_requirements

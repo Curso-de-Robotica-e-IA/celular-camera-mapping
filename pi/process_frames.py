@@ -10,9 +10,26 @@ from utils import create_or_replace_dir, get_command_in_command_list
 
 
 class ProcessFrames:
+    """
+    The ProcessFrames class is designed to handle video frame extraction, comparison, and analysis,
+    as well as orchestrating interactions with a device in a testing or automation scenario.
+    It supports tasks such as video processing, animation detection, and updating state information
+    based on visual input from a series of frames.
+    """
+
     def __init__(
         self, device_target_dir: Path, mapping_requirements: dict, device: Device, process_img: ProcessImage
     ) -> None:
+        """
+        Initialize the ProcessFrames class with required parameters.
+
+        Args:
+            device_target_dir (Path): The target directory for device-related data.
+            mapping_requirements (dict): Requirements for command mapping.
+            device (Device): The device object to interact with.
+            process_img (ProcessImage): The image processing object.
+        """
+
         self.__device = device
         self.__device_target_dir = device_target_dir
         self.__process_image = process_img
@@ -23,6 +40,14 @@ class ProcessFrames:
         self.__MIN_ANIMATION_TIME_S = 0.3
 
     def __split_frames(self, base_path: Path, folder_name: str) -> None:
+        """
+        Split a video file into individual frames and save them as images.
+
+        Args:
+            base_path (Path): The base directory containing the video.
+            folder_name (str): The folder name where the video is stored.
+        """
+
         full_path = base_path.joinpath(folder_name)
 
         vidObj = cv2.VideoCapture(
@@ -45,6 +70,17 @@ class ProcessFrames:
                 count += 1
 
     def __get_fps_for_video(self, base_path: Path, folder_name: str) -> int:
+        """
+        Retrieve the frames per second (FPS) of a video file.
+
+        Args:
+            base_path (Path): The base directory containing the video.
+            folder_name (str): The folder name where the video is stored.
+
+        Returns:
+            int: The FPS value of the video.
+        """
+
         full_path = base_path.joinpath(folder_name)
 
         vidObj = cv2.VideoCapture(
@@ -54,6 +90,17 @@ class ProcessFrames:
         return vidObj.get(cv2.CAP_PROP_FPS)
 
     def __compare_frames(self, device_target_dir: Path, command_name: str) -> list[float]:
+        """
+        Compare consecutive frames and compute the mean squared error (MSE).
+
+        Args:
+            device_target_dir (Path): The directory containing the frames to compare.
+            command_name (str): The name of the command executed.
+
+        Returns:
+            list[float]: A list of MSE values for the compared frames.
+        """
+
         frame_compare = []
 
         file_images_dir = device_target_dir.joinpath(command_name, "frames")
@@ -78,6 +125,17 @@ class ProcessFrames:
         return frame_compare
 
     def __calculate_moving_average(self, frame_compare: list[float], window_size: int) -> list[float]:
+        """
+        Calculate the moving average of frame comparison values.
+
+        Args:
+            frame_compare (list[float]): The list of frame comparison values.
+            window_size (int): The size of the moving window for averaging.
+
+        Returns:
+            list[float]: The list of moving average values.
+        """
+
         # Initialize an empty list to store moving averages
         moving_averages = []
 
@@ -103,9 +161,30 @@ class ProcessFrames:
         return moving_averages
 
     def __calculate_threshold_for_frames(self, frame_compare: list[float]) -> int:
+        """
+        Calculate a threshold value based on frame comparison data.
+
+        Args:
+            frame_compare (list[float]): The list of frame comparison values.
+
+        Returns:
+            int: The calculated threshold value.
+        """
+
         return sum(frame_compare) / len(frame_compare)
 
     def __calculate_states(self, state_list: list[int], fps_video: int) -> list[tuple[int, int, float]]:
+        """
+        Calculate state transitions and their durations in the video.
+
+        Args:
+            state_list (list[int]): The list of frame states (high/low).
+            fps_video (int): The frames per second (FPS) of the video.
+
+        Returns:
+            list[tuple[int, int, float]]: A list of tuples containing the start, end, and duration of states.
+        """
+
         lst_state = self.__LOW_STATE
         start = None
         animation_list = []
@@ -130,6 +209,17 @@ class ProcessFrames:
         return animation_list
 
     def __state_buffer(self, frame_compare: list[float], try_to_change: int) -> tuple[list[float], list[float]]:
+        """
+        Generate a list of states for each frame based on a threshold.
+
+        Args:
+            frame_compare (list[float]): The list of frame comparison values.
+            try_to_change (int): The number of frames to confirm a state change.
+
+        Returns:
+            tuple[list[float], list[float]]: The state list and corresponding thresholds.
+        """
+
         state = 0
         count = 0
 
@@ -166,6 +256,16 @@ class ProcessFrames:
     def __join_sleep_time(
         self, labeled_icons: dict, type_command: str, command_name_upper: str, sleep_time: float
     ) -> None:
+        """
+        Join or update the sleep time for a command in the labeled icons.
+
+        Args:
+            labeled_icons (dict): The labeled icons structure with command information.
+            type_command (str): The type of command being executed.
+            command_name_upper (str): The uppercase command name.
+            sleep_time (float): The calculated sleep time for the command.
+        """
+
         prev_value = 0
         if type_command in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]:
             prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][type_command]
@@ -177,6 +277,18 @@ class ProcessFrames:
     def __calculate_path_for_frame_with_menu_open(
         self, state_list: list[int], path_base: Path, open_animation_time: float
     ) -> Path:
+        """
+        Determine the path for the frame when the menu is open.
+
+        Args:
+            state_list (list[int]): The list of states for each frame.
+            path_base (Path): The base directory path for the frames.
+            open_animation_time (float): The time when the menu open animation occurs.
+
+        Returns:
+            Path: The path of the frame with the menu open.
+        """
+
         opened_menu_frame_idx = open_animation_time + (len(state_list) - 1 - open_animation_time) // 2
 
         opened_menu_frame_idx = min(opened_menu_frame_idx, open_animation_time + 5)
@@ -186,6 +298,17 @@ class ProcessFrames:
     def __execute_interaction_with_device(
         self, path_base: Path, command_target_cam: str, file_name: str
     ) -> tuple[list[int], tuple[int, int, float]]:
+        """
+        Execute a command interaction with the device and process the video frames.
+
+        Args:
+            path_base (Path): The base directory for device interaction.
+            command_target_cam (str): The target command for the camera.
+            file_name (str): The name of the file to save the video frames.
+
+        Returns:
+            tuple[list[int], tuple[int, int, float]]: The state list and animation data.
+        """
         record_len_s = 5
         self.__device.start_record_in_device(record_len_s)
         sleep(1)
@@ -210,6 +333,15 @@ class ProcessFrames:
         return state_list, animations
 
     def cam_and_mode_gradle_remapping(self, labeled_icons: dict, reference_cam: str, reference_mode: str) -> None:
+        """
+        Remap camera and mode commands for different camera configurations.
+
+        Args:
+            labeled_icons (dict): The labeled icons structure with command information.
+            reference_cam (str): The reference camera name.
+            reference_mode (str): The reference mode name.
+        """
+
         for cur_cam in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
             if cur_cam != reference_cam:
                 command_target_cam_name = f"cam {cur_cam}"
@@ -274,7 +406,14 @@ class ProcessFrames:
                         f"Check if the device has the camera open with the configuration: Cam={cur_cam}, Mode={reference_mode}\nPress enter after check..."
                     )
 
-    def mapping_menu_actions_in_each_group(self, labeled_icons: dict, groups: dict):
+    def mapping_menu_actions_in_each_group(self, labeled_icons: dict, groups: dict) -> None:
+        """
+        Map and execute menu actions for each group of commands.
+
+        Args:
+            labeled_icons (dict): The labeled icons structure with command information.
+            groups (dict): The groups of commands to map and execute.
+        """
         for cur_group in groups:
             # to requirements
             print("Goto require state")
@@ -323,6 +462,14 @@ class ProcessFrames:
             )
 
     def calculate_menu_actions_animations_in_each_group(self, labeled_icons: dict, groups: dict) -> None:
+        """
+        Calculate menu action animations for each group of commands.
+
+        Args:
+            labeled_icons (dict): The labeled icons structure with command information.
+            groups (dict): The groups of commands to map and execute animations.
+        """
+
         for cur_group in groups:
             # to requirements
             print("Goto require state")

@@ -8,7 +8,21 @@ from utils import (create_or_replace_dir, get_command_in_command_list,
 
 
 class DeviceMappingCLI:
+    """
+    A class to handle the process of mapping device screens, touch points, and menu items
+    for different camera and mode configurations on an Android device.
+    """
+
     def __init__(self, device_target, ip_port, current_step) -> None:
+        """
+        Initializes the DeviceMappingCLI class with the target device, IP address, and current step of the process.
+
+        Args:
+            device_target (str): The name of the device to be mapped.
+            ip_port (str): The IP address and port of the device.
+            current_step (int): The starting step of the mapping process.
+        """
+
         self.__device_target = device_target
         self.__ip_port = ip_port
         path_to_base_folder = Path.cwd()
@@ -60,6 +74,13 @@ class DeviceMappingCLI:
         )
 
     def __start_result_json(self):
+        """
+        Initializes a JSON structure to store command sequences and actions for mapping.
+
+        Returns:
+            dict: The initialized structure for command sequences.
+        """
+
         result_mapping = {"COMMAND_CHANGE_SEQUENCE": {}, "COMMANDS": []}
 
         for elem in self.__mapping_requirements["ITENS_TO_MAPPING"]:
@@ -72,6 +93,14 @@ class DeviceMappingCLI:
         return result_mapping
 
     def __get_menu_groups_by_cam_mode(self):
+        """
+        Retrieves and organizes menu groups by camera and mode combinations,
+        including commands to change between cameras and modes.
+
+        Returns:
+            list: A list of menu groups with commands and requirements for each camera and mode combination.
+        """
+
         groups = []
 
         for cur_cam in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
@@ -138,6 +167,13 @@ class DeviceMappingCLI:
         return groups
 
     def create_current_context_result(self):
+        """
+        Creates the initial result for the current mapping step or loads it from the previous step.
+
+        Returns:
+            dict: The result of the current mapping context.
+        """
+
         if self.__current_step == 0:
             create_or_replace_dir(self.__device_output_dir)
             create_or_replace_dir(self.__device_tmp_output_dir)
@@ -146,10 +182,18 @@ class DeviceMappingCLI:
             return load_labeled_icons(self.__device_tmp_output_dir, f"res_step_{(self.__current_step-1)}")
 
     def flush_current_step_progress(self):
+        """
+        Saves the progress of the current mapping step to a temporary directory and increments the step counter.
+        """
+
         write_output_in_json(self.__labeled_icons, self.__device_tmp_output_dir, f"res_step_{self.__current_step}")
         self.__current_step += 1
 
     def mapping_start_screen(self):
+        """
+        Maps the start screen of the device by capturing a screenshot and processing it for further steps.
+        """
+
         print("Mapping start screen ...")
         current_dir = self.__device_objects_dir.joinpath(f"{self.__current_cam} {self.__current_mode}")
         create_or_replace_dir(self.__device_objects_dir)
@@ -166,6 +210,10 @@ class DeviceMappingCLI:
         )
 
     def mapping_touch_for_all_screens(self):
+        """
+        Maps touch interactions for all screens by determining screen dimensions and touch coordinates.
+        """
+
         print("Mapping touch for all screens ...")
         dimension = self.__device.get_device_dimensions()
 
@@ -191,6 +239,10 @@ class DeviceMappingCLI:
             raise RuntimeError("Error in get dimension of device")
 
     def mapping_screens_combinations_for_cam_and_mode(self):
+        """
+        Maps screen combinations for different camera and mode settings, processing the remapping of frames.
+        """
+
         print("Mapping changes in cam and mode ...")
 
         self.__process_frames.cam_and_mode_gradle_remapping(
@@ -198,6 +250,10 @@ class DeviceMappingCLI:
         )
 
     def mapping_menu_itens_animation_in_each_screen(self):
+        """
+        Maps menu items and their animations for each screen and camera/mode combination.
+        """
+
         print("Calculate menu itens and animations in each combination ...")
 
         mapping_groups = self.__get_menu_groups_by_cam_mode()
@@ -205,6 +261,10 @@ class DeviceMappingCLI:
         self.__process_frames.mapping_menu_actions_in_each_group(self.__labeled_icons, mapping_groups)
 
     def mapping_menu_action_animation_in_each_screen(self):
+        """
+        Maps menu actions and their animations for each screen and camera/mode combination.
+        """
+
         print("Calculate menu action in each combination ...")
 
         mapping_groups = self.__get_menu_groups_by_cam_mode()
@@ -212,6 +272,10 @@ class DeviceMappingCLI:
         self.__process_frames.calculate_menu_actions_animations_in_each_group(self.__labeled_icons, mapping_groups)
 
     def main_loop(self):
+        """
+        Executes the mapping process by looping through each step, waiting for user input before proceeding.
+        """
+
         self.__device.start_server()
         self.__device.connect_device(self.__ip_port)
 
