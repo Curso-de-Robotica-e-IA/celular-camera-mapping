@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from device import Device
-from process.frames import ProcessFrames
-from process.image import ProcessImage
+from core.frames_processing import FramesProcessing
+from core.image_processing import ImageProcessing
 from utils import create_or_replace_dir, get_command_in_command_list, load_labeled_icons, write_output_in_json
 
 
@@ -67,8 +67,8 @@ class DeviceMappingCLI:
         self.__labeled_icons = self.create_current_context_result()
 
         self.__device = Device()
-        self.__process_img = ProcessImage(self.__size_in_screen, self.__mapping_requirements)
-        self.__process_frames = ProcessFrames(
+        self.__process_img = ImageProcessing(self.__size_in_screen, self.__mapping_requirements)
+        self.__process_frames = FramesProcessing(
             self.__device_objects_dir, self.__mapping_requirements, self.__device, self.__process_img
         )
 

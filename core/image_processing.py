@@ -8,9 +8,9 @@ from entities import ClickableBox, Point
 from utils import show_image_in_thread
 
 
-class ProcessImage:
+class ImageProcessing:
     """
-    The ProcessImage class is designed to handle image processing tasks,
+    The ImageProcessing class is designed to handle image processing tasks,
     particularly for detecting and managing clickable regions within an image.
     It is primarily focused on detecting contours (shapes) in the image and providing step-by-step
     interactions for user input, which helps to label and map detected regions. Below is a description
@@ -19,7 +19,7 @@ class ProcessImage:
 
     def __init__(self, size_in_screen: int, mapping_requirements: dict) -> None:
         """
-        Initialize the ProcessImage object.
+        Initialize the ImageProcessing object.
 
         Args:
             size_in_screen (int): The size of the image on the screen.

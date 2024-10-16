@@ -5,29 +5,29 @@ import cv2
 from sewar.full_ref import mse
 
 from device import Device
-from process.image import ProcessImage
+from core.image_processing import ImageProcessing
 from utils import create_or_replace_dir, get_command_in_command_list
 
 
-class ProcessFrames:
+class FramesProcessing:
     """
-    The ProcessFrames class is designed to handle video frame extraction, comparison, and analysis,
+    The FramesProcessing class is designed to handle video frame extraction, comparison, and analysis,
     as well as orchestrating interactions with a device in a testing or automation scenario.
     It supports tasks such as video processing, animation detection, and updating state information
     based on visual input from a series of frames.
     """
 
     def __init__(
-        self, device_target_dir: Path, mapping_requirements: dict, device: Device, process_img: ProcessImage
+        self, device_target_dir: Path, mapping_requirements: dict, device: Device, process_img: ImageProcessing
     ) -> None:
         """
-        Initialize the ProcessFrames class with required parameters.
+        Initialize the FramesProcessing class with required parameters.
 
         Args:
             device_target_dir (Path): The target directory for device-related data.
             mapping_requirements (dict): Requirements for command mapping.
             device (Device): The device object to interact with.
-            process_img (ProcessImage): The image processing object.
+            process_img (ImageProcessing): The image processing object.
         """
 
         self.__device = device
