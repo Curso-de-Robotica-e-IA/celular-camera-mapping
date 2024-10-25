@@ -108,7 +108,7 @@ class FramesProcessing:
         file_images_list = list(file_images_dir.rglob("*.png"))
 
         def sort_by_number(file_name: Path):
-            return int(file_name.parts.split(".")[0].split("_")[-1])
+            return int(file_name.parts[-1].split(".")[0].split("_")[-1])
 
         file_images_list = sorted(file_images_list, key=sort_by_number)
 
@@ -392,7 +392,7 @@ class FramesProcessing:
                     command_name_full = command_target_mode["command_name"]
                     command_name_upper = command_name_full.split(" ")[0].upper()
 
-                    self.__join_sleep_time(labeled_icons, command_name_upper, animations[2])
+                    self.__join_sleep_time(labeled_icons, "CLICK_ACTION", command_name_upper, animations[2])
 
                     opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
                         state_list, self.__device_target_dir.joinpath(file_name), animations[1]
