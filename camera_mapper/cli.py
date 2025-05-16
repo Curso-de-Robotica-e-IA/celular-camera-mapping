@@ -2,7 +2,7 @@ from rich.console import Console
 from typer import Context, Exit, Option, Typer
 
 from camera_mapper import __version__
-from camera_mapper.core.camera_mapper import CameraMapper
+from camera_mapper.camera_mapper import CameraMapper
 
 app = Typer(add_completion=False)
 console = Console()
