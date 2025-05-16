@@ -4,7 +4,7 @@ from typer import Context, Exit, Option, Typer
 from camera_mapper import __version__
 from camera_mapper.core.camera_mapper import CameraMapper
 
-app = Typer()
+app = Typer(add_completion=False)
 console = Console()
 
 
@@ -14,7 +14,7 @@ def version_func(flag: bool):
         raise Exit(code=0)
 
 
-@app.command(name="camapper")
+@app.callback(invoke_without_command=True)
 def camapper(
     ctx: Context,
     version: bool = Option(
@@ -23,31 +23,28 @@ def camapper(
     device_brand: str = Option(
         None,
         "--brand",
+        "-b",
         help="Device brand Model name (e.g., Samsung-A34, Motorola-G53, etc.)",
     ),
     device_ip: str = Option(
         None,
         "--ip",
+        "-i",
         help="Device IP address (e.g., 127.0.0.1:5555)",
     ),
     start_step: int = Option(
         0,
         "--start-step",
+        "-s",
         help="Step number for start mapping (e.g., 0, 1, 2, 3, etc.)",
     ),
 ) -> None:
     message = "Welcome to [bold blue]Camera Mapper[/bold blue], the CLI to map icons of your camera app Android Device."
-    print(message)
     """Camera Mapper CLI."""
-    if ctx.invoked_subcommand is None:
-        console.print("No command provided. Use --help for more information.")
-        raise Exit(1)
+    if ctx.invoked_subcommand:
+        return
 
     console.print(message)
 
     mapper = CameraMapper(device_brand, device_ip, start_step)
     mapper.main_loop()
-
-
-if __name__ == "__main__":
-    app()

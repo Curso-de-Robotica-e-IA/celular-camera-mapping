@@ -1,2 +1,2 @@
-from entities.clickable_box import ClickableBox
-from entities.point import Point
+from camera_mapper.entities.clickable_box import ClickableBox
+from camera_mapper.entities.point import Point
