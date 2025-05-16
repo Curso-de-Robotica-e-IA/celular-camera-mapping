@@ -1,12 +1,17 @@
 from pathlib import Path
 
-from device import Device
-from core.frames_processing import FramesProcessing
-from core.image_processing import ImageProcessing
-from utils import create_or_replace_dir, get_command_in_command_list, load_labeled_icons, write_output_in_json
+from camera_mapper.core.device import Device
+from camera_mapper.core.frames_processing import FramesProcessing
+from camera_mapper.core.image_processing import ImageProcessing
+from camera_mapper.utils import (
+    create_or_replace_dir,
+    get_command_in_command_list,
+    load_labeled_icons,
+    write_output_in_json,
+)
 
 
-class DeviceMappingCLI:
+class CameraMapper:
     """
     A class to handle the process of mapping device screens, touch points, and menu items
     for different camera and mode configurations on an Android device.
@@ -14,7 +19,7 @@ class DeviceMappingCLI:
 
     def __init__(self, device_target, ip_port, current_step) -> None:
         """
-        Initializes the DeviceMappingCLI class with the target device, IP address, and current step of the process.
+        Initializes the CameraMapper class with the target device, IP address, and current step of the process.
 
         Args:
             device_target (str): The name of the device to be mapped.
@@ -25,18 +30,32 @@ class DeviceMappingCLI:
         self.__device_target = device_target
         self.__ip_port = ip_port
         path_to_base_folder = Path.cwd()
-        self.__device_objects_dir = Path.joinpath(path_to_base_folder, "meta", device_target)
-        self.__device_output_dir = Path.joinpath(path_to_base_folder, "output", device_target)
+        self.__device_objects_dir = Path.joinpath(
+            path_to_base_folder, "meta", device_target
+        )
+        self.__device_output_dir = Path.joinpath(
+            path_to_base_folder, "output", device_target
+        )
         self.__device_tmp_output_dir = Path.joinpath(self.__device_output_dir, "tmp")
         self.__size_in_screen = 800
 
         self.__mapping_requirements = {
-            "STATE_REQUIRES": {"CAM": ["main", "selfie"], "MODE": ["photo", "portrait"]},
+            "STATE_REQUIRES": {
+                "CAM": ["main", "selfie"],
+                "MODE": ["photo", "portrait"],
+            },
             "COMMAND_ACTION_AVAILABLE": [
                 "CLICK_MENU",
                 "CLICK_ACTION",
             ],
-            "ITENS_TO_MAPPING": ["CAM", "MODE", "ASPECT_RATIO", "FLASH", "TAKE_PICTURE", "TOUCH"],
+            "ITENS_TO_MAPPING": [
+                "CAM",
+                "MODE",
+                "ASPECT_RATIO",
+                "FLASH",
+                "TAKE_PICTURE",
+                "TOUCH",
+            ],
             "INFO_DEVICE": [
                 "SERIAL_NUMBER_DEV",
                 "MODEL_DEV",
@@ -67,9 +86,14 @@ class DeviceMappingCLI:
         self.__labeled_icons = self.create_current_context_result()
 
         self.__device = Device()
-        self.__process_img = ImageProcessing(self.__size_in_screen, self.__mapping_requirements)
+        self.__process_img = ImageProcessing(
+            self.__size_in_screen, self.__mapping_requirements
+        )
         self.__process_frames = FramesProcessing(
-            self.__device_objects_dir, self.__mapping_requirements, self.__device, self.__process_img
+            self.__device_objects_dir,
+            self.__mapping_requirements,
+            self.__device,
+            self.__process_img,
         )
 
     def __start_result_json(self):
@@ -158,8 +182,10 @@ class DeviceMappingCLI:
             for command in self.__labeled_icons["COMMANDS"]:
                 if (
                     "menu" in command["command_name"]
-                    and cur_group["requirements"]["cam"] in command["requirements"]["cam"]
-                    and cur_group["requirements"]["mode"] in command["requirements"]["mode"]
+                    and cur_group["requirements"]["cam"]
+                    in command["requirements"]["cam"]
+                    and cur_group["requirements"]["mode"]
+                    in command["requirements"]["mode"]
                 ):
                     cur_group["commands"].append(command)
 
@@ -178,14 +204,20 @@ class DeviceMappingCLI:
             create_or_replace_dir(self.__device_tmp_output_dir)
             return self.__start_result_json()
         else:
-            return load_labeled_icons(self.__device_tmp_output_dir, f"res_step_{(self.__current_step-1)}")
+            return load_labeled_icons(
+                self.__device_tmp_output_dir, f"res_step_{(self.__current_step - 1)}"
+            )
 
     def flush_current_step_progress(self):
         """
         Saves the progress of the current mapping step to a temporary directory and increments the step counter.
         """
 
-        write_output_in_json(self.__labeled_icons, self.__device_tmp_output_dir, f"res_step_{self.__current_step}")
+        write_output_in_json(
+            self.__labeled_icons,
+            self.__device_tmp_output_dir,
+            f"res_step_{self.__current_step}",
+        )
         self.__current_step += 1
 
     def mapping_start_screen(self):
@@ -194,7 +226,9 @@ class DeviceMappingCLI:
         """
 
         print("Mapping start screen ...")
-        current_dir = self.__device_objects_dir.joinpath(f"{self.__current_cam} {self.__current_mode}")
+        current_dir = self.__device_objects_dir.joinpath(
+            f"{self.__current_cam} {self.__current_mode}"
+        )
         create_or_replace_dir(self.__device_objects_dir)
         create_or_replace_dir(current_dir)
 
@@ -229,11 +263,17 @@ class DeviceMappingCLI:
 
             command["requirements"] = {"cam": "main,selfie", "mode": "photo,portrait"}
             self.__labeled_icons["COMMANDS"].append(command)
-            self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SEQUENCE ON"].append("CLICK_ACTION")
+            self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"][
+                "COMMAND_SEQUENCE ON"
+            ].append("CLICK_ACTION")
 
-            self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SEQUENCE OFF"].append("CLICK_ACTION")
+            self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"][
+                "COMMAND_SEQUENCE OFF"
+            ].append("CLICK_ACTION")
 
-            self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SLEEPS"]["CLICK_ACTION"] = 2
+            self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SLEEPS"][
+                "CLICK_ACTION"
+            ] = 2
         else:
             raise RuntimeError("Error in get dimension of device")
 
@@ -257,7 +297,9 @@ class DeviceMappingCLI:
 
         mapping_groups = self.__get_menu_groups_by_cam_mode()
 
-        self.__process_frames.mapping_menu_actions_in_each_group(self.__labeled_icons, mapping_groups)
+        self.__process_frames.mapping_menu_actions_in_each_group(
+            self.__labeled_icons, mapping_groups
+        )
 
     def mapping_menu_action_animation_in_each_screen(self):
         """
@@ -268,7 +310,9 @@ class DeviceMappingCLI:
 
         mapping_groups = self.__get_menu_groups_by_cam_mode()
 
-        self.__process_frames.calculate_menu_actions_animations_in_each_group(self.__labeled_icons, mapping_groups)
+        self.__process_frames.calculate_menu_actions_animations_in_each_group(
+            self.__labeled_icons, mapping_groups
+        )
 
     def main_loop(self):
         """
@@ -289,14 +333,8 @@ class DeviceMappingCLI:
             self.flush_current_step_progress()
 
         print("Write final output ...")
-        write_output_in_json(self.__labeled_icons, self.__device_output_dir, f"{self.__device_target}_mapping")
-
-
-if __name__ == "__main__":
-    cur_device_name = input("Device brand-model: ")  # Samsung-A34
-    device_ip_port = input("Device IP:Port: ")  # 192.168.155.1:33429
-    start_step = int(input("Step number for start mapping: "))
-
-    cli_app = DeviceMappingCLI(cur_device_name, device_ip_port, start_step)
-
-    cli_app.main_loop()
+        write_output_in_json(
+            self.__labeled_icons,
+            self.__device_output_dir,
+            f"{self.__device_target}_mapping",
+        )

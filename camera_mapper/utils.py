@@ -94,5 +94,8 @@ def get_command_in_command_list(
     """
     for command in command_list:
         if command_name in command["command_name"]:
-            if current_cam in command["requirements"]["cam"] and current_mode in command["requirements"]["mode"]:
+            if (
+                current_cam in command["requirements"]["cam"]
+                and current_mode in command["requirements"]["mode"]
+            ):
                 return command

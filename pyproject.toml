@@ -1,0 +1,27 @@
+[project]
+name = "camera-mapper"
+version = "0.1.0"
+description = "CLI to map the camera app from different android devices"
+authors = [
+    {name = "goncamateus",email = "mateus.gm@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "sewar>=0.4.6,<0.5.0",
+    "opencv-python==4.9.0.80",
+    "opencv-contrib-python==4.9.0.80",
+    "numpy==1.26.1",
+    "typer>=0.15.1,<0.16.0"
+]
+
+[project.scripts]
+camapper = "camera_mapper.cli:app"
+
+[tool.poetry.group.dev.dependencies]
+ipython = "^9.2.0"
+ruff = "^0.11.10"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

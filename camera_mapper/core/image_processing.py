@@ -4,8 +4,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from entities import ClickableBox, Point
-from utils import show_image_in_thread
+from camera_mapper.entities import ClickableBox, Point
+from camera_mapper.utils import show_image_in_thread
 
 
 class ImageProcessing:
@@ -29,7 +29,9 @@ class ImageProcessing:
         self.__size_in_screen = size_in_screen
         self.__mapping_requirements = mapping_requirements
 
-    def __merge_contours(self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike) -> cv2.typing.MatLike:
+    def __merge_contours(
+        self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike
+    ) -> cv2.typing.MatLike:
         """
         Merge two contours into one.
 
@@ -43,7 +45,9 @@ class ImageProcessing:
 
         return np.concatenate((contour1, contour2), axis=0)
 
-    def __calculate_contour_distance(self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike) -> int:
+    def __calculate_contour_distance(
+        self, contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike
+    ) -> int:
         """
         Calculate the distance between two contours.
 
@@ -65,7 +69,9 @@ class ImageProcessing:
 
         return max(abs(c_x1 - c_x2) - (w1 + w2) / 2, abs(c_y1 - c_y2) - (h1 + h2) / 2)
 
-    def __agglomerative_cluster(self, contours: cv2.typing.MatLike, threshold_distance: int) -> cv2.typing.MatLike:
+    def __agglomerative_cluster(
+        self, contours: cv2.typing.MatLike, threshold_distance: int
+    ) -> cv2.typing.MatLike:
         """
         Perform agglomerative clustering to merge contours that are within a certain distance of each other.
 
@@ -84,7 +90,9 @@ class ImageProcessing:
 
             for x in range(len(current_contours) - 1):
                 for y in range(x + 1, len(current_contours)):
-                    distance = self.__calculate_contour_distance(current_contours[x], current_contours[y])
+                    distance = self.__calculate_contour_distance(
+                        current_contours[x], current_contours[y]
+                    )
                     if min_distance is None:
                         min_distance = distance
                         min_coordinate = (x, y)
@@ -94,7 +102,9 @@ class ImageProcessing:
 
             if min_distance < threshold_distance:
                 index1, index2 = min_coordinate
-                current_contours[index1] = self.__merge_contours(current_contours[index1], current_contours[index2])
+                current_contours[index1] = self.__merge_contours(
+                    current_contours[index1], current_contours[index2]
+                )
                 current_contours.pop(index2)
             else:
                 break
@@ -132,13 +142,18 @@ class ImageProcessing:
             cx = int((x + (w / 2)))
             cy = int((y + (h / 2)))
 
-            detect_item = ClickableBox("", Point(min_x, min_y), Point(max_x, max_y), Point(cx, cy))
+            detect_item = ClickableBox(
+                "", Point(min_x, min_y), Point(max_x, max_y), Point(cx, cy)
+            )
             detect_list.append(detect_item)
 
         return detect_list
 
     def __show_clickable_itens(
-        self, image: cv2.typing.MatLike, detect_box: list[ClickableBox], size_in_screen: int
+        self,
+        image: cv2.typing.MatLike,
+        detect_box: list[ClickableBox],
+        size_in_screen: int,
     ) -> None:
         """
         Display clickable items on the image.
@@ -169,7 +184,9 @@ class ImageProcessing:
                 color=(255, 0, 0),
                 thickness=2,
             )
-            cv2.circle(new_image, box.centroid.to_tuple(), 10, color=(0, 0, 255), thickness=4)
+            cv2.circle(
+                new_image, box.centroid.to_tuple(), 10, color=(0, 0, 255), thickness=4
+            )
 
         scale = size_in_screen / image.shape[0]
         new_image = cv2.resize(new_image, (0, 0), fx=scale, fy=scale)
@@ -222,7 +239,9 @@ class ImageProcessing:
                     if "y" in label_name:
                         command = {}
                         print("Select the item type in list:\n")
-                        for i, elem in enumerate(command_to_mapping["ITENS_TO_MAPPING"]):
+                        for i, elem in enumerate(
+                            command_to_mapping["ITENS_TO_MAPPING"]
+                        ):
                             print(f"[{i}] -", elem)
 
                         idx = None
@@ -236,7 +255,9 @@ class ImageProcessing:
                         command_label = command_to_mapping["ITENS_TO_MAPPING"][idx]
 
                         print("Select the command action type in list:\n")
-                        for i, elem in enumerate(command_to_mapping["COMMAND_ACTION_AVAILABLE"]):
+                        for i, elem in enumerate(
+                            command_to_mapping["COMMAND_ACTION_AVAILABLE"]
+                        ):
                             print(f"[{i}] -", elem)
 
                         act_idx = None
@@ -248,16 +269,21 @@ class ImageProcessing:
                                 print(e)
 
                         command_full_name = ""
-                        if command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx] == "CLICK_MENU":
+                        if (
+                            command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
+                            == "CLICK_MENU"
+                        ):
                             command_full_name = command_label.lower() + " menu"
                         elif command_label == "TAKE_PICTURE":
-                            labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TAKE_PICTURE"]["COMMAND_SLEEPS"][
-                                "CLICK_ACTION"
-                            ] = 3
+                            labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TAKE_PICTURE"][
+                                "COMMAND_SLEEPS"
+                            ]["CLICK_ACTION"] = 3
                             command_full_name = command_label.lower().replace("_", " ")
                         else:
                             command_value = input("Typing the command value:")
-                            command_full_name = command_label.lower() + f" {command_value}"
+                            command_full_name = (
+                                command_label.lower() + f" {command_value}"
+                            )
 
                         command["command_name"] = command_full_name
                         command["click_by_coordinates"] = {
@@ -265,7 +291,10 @@ class ImageProcessing:
                             "start_y": box.centroid.y,
                         }
 
-                        command["requirements"] = {"cam": current_cam, "mode": current_mode}
+                        command["requirements"] = {
+                            "cam": current_cam,
+                            "mode": current_mode,
+                        }
 
                         apply_to = ["ON", "OFF"]
 
@@ -273,10 +302,16 @@ class ImageProcessing:
                             value = f"COMMAND_SEQUENCE {flow_type}"
                             if not (
                                 command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
-                                in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value]
+                                in labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                                    command_label
+                                ][value]
                             ):
-                                labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][value].append(
-                                    command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
+                                labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_label][
+                                    value
+                                ].append(
+                                    command_to_mapping["COMMAND_ACTION_AVAILABLE"][
+                                        act_idx
+                                    ]
                                 )
 
                         labeled_icons["COMMANDS"].append(command)
@@ -302,7 +337,9 @@ class ImageProcessing:
 
         detect_boxes_from_contours = self.__find_contours_in_image(image)
 
-        self.__show_clickable_itens(image, detect_boxes_from_contours, self.__size_in_screen)
+        self.__show_clickable_itens(
+            image, detect_boxes_from_contours, self.__size_in_screen
+        )
 
         self.__process_detection_in_screen_step_by_step(
             image,

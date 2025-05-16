@@ -27,7 +27,11 @@ class Device:
             tuple[int, int] | None: A tuple containing the width and height of the device screen if available,
             otherwise None.
         """
-        result = subprocess.run(["adb", "-s", self.__ip_port, "shell", "wm", "size"], capture_output=True, text=True)
+        result = subprocess.run(
+            ["adb", "-s", self.__ip_port, "shell", "wm", "size"],
+            capture_output=True,
+            text=True,
+        )
         dimensions = result.stdout.strip()
         pattern = r"(\d+)x(\d+)"
         match = re.search(pattern, dimensions)
@@ -111,7 +115,9 @@ class Device:
         """
         Deletes the recorded video file from the device.
         """
-        subprocess.run(["adb", "-s", self.__ip_port, "shell", "rm", self.__device_video_path])
+        subprocess.run(
+            ["adb", "-s", self.__ip_port, "shell", "rm", self.__device_video_path]
+        )
 
     def get_screen_image(self, path: Path, tag: str) -> None:
         """
