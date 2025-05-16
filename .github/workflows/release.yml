@@ -34,6 +34,6 @@ jobs:
         shell: bash
         run: |
           FILES_WHEEL=$(ls ./dist/*.whl)
-          gh release create ${{ github.ref}} $FILES_WHEEL --generate-notes
+          gh release create ${{ github.ref_name }} $FILES_WHEEL --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
