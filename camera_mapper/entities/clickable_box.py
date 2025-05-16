@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from entities.point import Point
+from camera_mapper.entities.point import Point
 
 
 @dataclass(unsafe_hash=True)

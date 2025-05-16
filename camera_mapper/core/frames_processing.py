@@ -4,9 +4,9 @@ from time import sleep
 import cv2
 from sewar.full_ref import mse
 
-from device import Device
-from core.image_processing import ImageProcessing
-from utils import create_or_replace_dir, get_command_in_command_list
+from camera_mapper.core.device import Device
+from camera_mapper.core.image_processing import ImageProcessing
+from camera_mapper.utils import create_or_replace_dir, get_command_in_command_list
 
 
 class FramesProcessing:
@@ -18,7 +18,11 @@ class FramesProcessing:
     """
 
     def __init__(
-        self, device_target_dir: Path, mapping_requirements: dict, device: Device, process_img: ImageProcessing
+        self,
+        device_target_dir: Path,
+        mapping_requirements: dict,
+        device: Device,
+        process_img: ImageProcessing,
     ) -> None:
         """
         Initialize the FramesProcessing class with required parameters.
@@ -89,7 +93,9 @@ class FramesProcessing:
 
         return vidObj.get(cv2.CAP_PROP_FPS)
 
-    def __compare_frames(self, device_target_dir: Path, command_name: str) -> list[float]:
+    def __compare_frames(
+        self, device_target_dir: Path, command_name: str
+    ) -> list[float]:
         """
         Compare consecutive frames and compute the mean squared error (MSE).
 
@@ -124,7 +130,9 @@ class FramesProcessing:
 
         return frame_compare
 
-    def __calculate_moving_average(self, frame_compare: list[float], window_size: int) -> list[float]:
+    def __calculate_moving_average(
+        self, frame_compare: list[float], window_size: int
+    ) -> list[float]:
         """
         Calculate the moving average of frame comparison values.
 
@@ -173,7 +181,9 @@ class FramesProcessing:
 
         return sum(frame_compare) / len(frame_compare)
 
-    def __calculate_states(self, state_list: list[int], fps_video: int) -> list[tuple[int, int, float]]:
+    def __calculate_states(
+        self, state_list: list[int], fps_video: int
+    ) -> list[tuple[int, int, float]]:
         """
         Calculate state transitions and their durations in the video.
 
@@ -208,7 +218,9 @@ class FramesProcessing:
 
         return animation_list
 
-    def __state_buffer(self, frame_compare: list[float], try_to_change: int) -> tuple[list[float], list[float]]:
+    def __state_buffer(
+        self, frame_compare: list[float], try_to_change: int
+    ) -> tuple[list[float], list[float]]:
         """
         Generate a list of states for each frame based on a threshold.
 
@@ -254,7 +266,11 @@ class FramesProcessing:
         return state_list, threshold_ref_list
 
     def __join_sleep_time(
-        self, labeled_icons: dict, type_command: str, command_name_upper: str, sleep_time: float
+        self,
+        labeled_icons: dict,
+        type_command: str,
+        command_name_upper: str,
+        sleep_time: float,
     ) -> None:
         """
         Join or update the sleep time for a command in the labeled icons.
@@ -267,12 +283,19 @@ class FramesProcessing:
         """
 
         prev_value = 0
-        if type_command in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"]:
-            prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][type_command]
+        if (
+            type_command
+            in labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                "COMMAND_SLEEPS"
+            ]
+        ):
+            prev_value = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
+                "COMMAND_SLEEPS"
+            ][type_command]
 
-        labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][type_command] = max(
-            prev_value, round(sleep_time * 1.2, 2)
-        )
+        labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper]["COMMAND_SLEEPS"][
+            type_command
+        ] = max(prev_value, round(sleep_time * 1.2, 2))
 
     def __calculate_path_for_frame_with_menu_open(
         self, state_list: list[int], path_base: Path, open_animation_time: float
@@ -289,7 +312,9 @@ class FramesProcessing:
             Path: The path of the frame with the menu open.
         """
 
-        opened_menu_frame_idx = open_animation_time + (len(state_list) - 1 - open_animation_time) // 2
+        opened_menu_frame_idx = (
+            open_animation_time + (len(state_list) - 1 - open_animation_time) // 2
+        )
 
         opened_menu_frame_idx = min(opened_menu_frame_idx, open_animation_time + 5)
 
@@ -332,7 +357,9 @@ class FramesProcessing:
 
         return state_list, animations
 
-    def cam_and_mode_gradle_remapping(self, labeled_icons: dict, reference_cam: str, reference_mode: str) -> None:
+    def cam_and_mode_gradle_remapping(
+        self, labeled_icons: dict, reference_cam: str, reference_mode: str
+    ) -> None:
         """
         Remap camera and mode commands for different camera configurations.
 
@@ -361,10 +388,14 @@ class FramesProcessing:
                 command_name_full = command_target_cam["command_name"]
                 command_name_upper = command_name_full.split(" ")[0].upper()
 
-                self.__join_sleep_time(labeled_icons, "CLICK_ACTION", command_name_upper, animations[2])
+                self.__join_sleep_time(
+                    labeled_icons, "CLICK_ACTION", command_name_upper, animations[2]
+                )
 
                 opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
-                    state_list, self.__device_target_dir.joinpath(file_name), animations[1]
+                    state_list,
+                    self.__device_target_dir.joinpath(file_name),
+                    animations[1],
                 )
 
                 self.__process_image.process_screen_step_by_step(
@@ -379,7 +410,10 @@ class FramesProcessing:
                 if cur_mode != reference_mode:
                     command_target_mode_name = f"mode {cur_mode}"
                     command_target_mode = get_command_in_command_list(
-                        labeled_icons["COMMANDS"], command_target_mode_name, cur_cam, reference_mode
+                        labeled_icons["COMMANDS"],
+                        command_target_mode_name,
+                        cur_cam,
+                        reference_mode,
                     )
 
                     file_name = f"{cur_cam} {cur_mode}"
@@ -392,10 +426,16 @@ class FramesProcessing:
                     command_name_full = command_target_mode["command_name"]
                     command_name_upper = command_name_full.split(" ")[0].upper()
 
-                    self.__join_sleep_time(labeled_icons, "CLICK_ACTION", command_name_upper, animations[2])
+                    self.__join_sleep_time(
+                        labeled_icons, "CLICK_ACTION", command_name_upper, animations[2]
+                    )
 
-                    opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
-                        state_list, self.__device_target_dir.joinpath(file_name), animations[1]
+                    opened_menu_img_path = (
+                        self.__calculate_path_for_frame_with_menu_open(
+                            state_list,
+                            self.__device_target_dir.joinpath(file_name),
+                            animations[1],
+                        )
                     )
 
                     self.__process_image.process_screen_step_by_step(
@@ -406,7 +446,9 @@ class FramesProcessing:
                         f"Check if the device has the camera open with the configuration: Cam={cur_cam}, Mode={reference_mode}\nPress enter after check..."
                     )
 
-    def mapping_menu_actions_in_each_group(self, labeled_icons: dict, groups: dict) -> None:
+    def mapping_menu_actions_in_each_group(
+        self, labeled_icons: dict, groups: dict
+    ) -> None:
         """
         Map and execute menu actions for each group of commands.
 
@@ -420,9 +462,9 @@ class FramesProcessing:
             for comm_to in cur_group["to_requirements"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
-                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
-                    "CLICK_ACTION"
-                ]
+                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                    command_type_upper
+                ]["COMMAND_SLEEPS"]["CLICK_ACTION"]
                 sleep(sleep_time)
 
             current_cam = cur_group["requirements"]["cam"]
@@ -431,7 +473,9 @@ class FramesProcessing:
             for command in cur_group["commands"]:
                 command_name_full = command["command_name"]
                 command_name_upper = command_name_full.split(" ")[0].upper()
-                current_base_dir = self.__device_target_dir.joinpath(f"{current_cam} {current_mode}")
+                current_base_dir = self.__device_target_dir.joinpath(
+                    f"{current_cam} {current_mode}"
+                )
 
                 state_list, animations = self.__execute_interaction_with_device(
                     current_base_dir, command, command_name_full
@@ -439,7 +483,9 @@ class FramesProcessing:
 
                 print(command["command_name"], animations)
 
-                self.__join_sleep_time(labeled_icons, "CLICK_MENU", command_name_upper, animations[2])
+                self.__join_sleep_time(
+                    labeled_icons, "CLICK_MENU", command_name_upper, animations[2]
+                )
 
                 opened_menu_img_path = self.__calculate_path_for_frame_with_menu_open(
                     state_list,
@@ -447,7 +493,9 @@ class FramesProcessing:
                     animations[1],
                 )
 
-                print(f"Labeling options in {command_name_full} for config {current_cam} {current_mode}...")
+                print(
+                    f"Labeling options in {command_name_full} for config {current_cam} {current_mode}..."
+                )
 
                 self.__process_image.process_screen_step_by_step(
                     labeled_icons, opened_menu_img_path, current_cam, current_mode
@@ -461,7 +509,9 @@ class FramesProcessing:
                 "Check if the device has the camera open with the configuration: Cam=Main, Mode=Photo\nPress enter after check..."
             )
 
-    def calculate_menu_actions_animations_in_each_group(self, labeled_icons: dict, groups: dict) -> None:
+    def calculate_menu_actions_animations_in_each_group(
+        self, labeled_icons: dict, groups: dict
+    ) -> None:
         """
         Calculate menu action animations for each group of commands.
 
@@ -476,9 +526,9 @@ class FramesProcessing:
             for comm_to in cur_group["to_requirements"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
-                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
-                    "CLICK_ACTION"
-                ]
+                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                    command_type_upper
+                ]["COMMAND_SLEEPS"]["CLICK_ACTION"]
                 sleep(sleep_time)
 
             current_cam = cur_group["requirements"]["cam"]
@@ -506,7 +556,9 @@ class FramesProcessing:
                     full_child_name = action["command_name"]
                     print(f"Apply Transition: {full_command_name} -> {full_child_name}")
 
-                    current_target_path = self.__device_target_dir.joinpath(dir_for_mode, full_command_name)
+                    current_target_path = self.__device_target_dir.joinpath(
+                        dir_for_mode, full_command_name
+                    )
                     file_name = full_child_name.replace(":", "_")
                     record_len_s = 5
 
@@ -516,9 +568,9 @@ class FramesProcessing:
 
                     self.__device.click_by_coordinates_in_device(command)
 
-                    sleep_time_menu = labeled_icons["COMMAND_CHANGE_SEQUENCE"][(command_name_type.upper())][
-                        "COMMAND_SLEEPS"
-                    ]["CLICK_MENU"]
+                    sleep_time_menu = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                        (command_name_type.upper())
+                    ]["COMMAND_SLEEPS"]["CLICK_MENU"]
                     sleep(sleep_time_menu)
 
                     self.__device.click_by_coordinates_in_device(action)
@@ -546,15 +598,18 @@ class FramesProcessing:
                     menu_sleep_time = 0
 
                     if len(animations) == 1:
-                        menu_sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_name_upper][
-                            "COMMAND_SLEEPS"
-                        ]["CLICK_MENU"]
+                        menu_sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                            command_name_upper
+                        ]["COMMAND_SLEEPS"]["CLICK_MENU"]
                         animations = animations[0]
                     else:
                         animations = animations[1]
 
                     self.__join_sleep_time(
-                        labeled_icons, "CLICK_ACTION", command_name_upper, animations[2] * 1.5 - menu_sleep_time
+                        labeled_icons,
+                        "CLICK_ACTION",
+                        command_name_upper,
+                        animations[2] * 1.5 - menu_sleep_time,
                     )
 
             # return_to_base
@@ -562,7 +617,7 @@ class FramesProcessing:
             for comm_to in cur_group["return_to_base"]:
                 self.__device.click_by_coordinates_in_device(comm_to)
                 command_type_upper = comm_to["command_name"].upper().split(" ")[0]
-                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][command_type_upper]["COMMAND_SLEEPS"][
-                    "CLICK_ACTION"
-                ]
+                sleep_time = labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                    command_type_upper
+                ]["COMMAND_SLEEPS"]["CLICK_ACTION"]
                 sleep(sleep_time)
