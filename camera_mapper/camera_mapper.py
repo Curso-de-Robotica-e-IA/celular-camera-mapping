@@ -205,11 +205,8 @@ class CameraMapper:
         """
 
         print("Mapping touch for all screens ...")
-        dimension = self.__device.info.get_screen_dimensions()
-
-        if dimension:
-            width = dimension[0]
-            height = dimension[1]
+        try:
+            width, height = self.__device.info.get_screen_dimensions()
 
             command = {}
             command["command_name"] = "touch"
@@ -231,7 +228,7 @@ class CameraMapper:
             self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SLEEPS"][
                 "CLICK_ACTION"
             ] = 2
-        else:
+        except IndexError:
             raise RuntimeError("Error in get dimension of device")
 
     def mapping_screens_combinations_for_cam_and_mode(self):
