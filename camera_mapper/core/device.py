@@ -36,7 +36,7 @@ class Device:
         matched_device = [
             device.serial_number for device in visible_devices if device.ip == ip
         ]
-        if matched_device:
+        try:
             matched_device = matched_device[0]
             connected = self.manager.connect_devices(matched_device)
             if not connected:
@@ -45,10 +45,10 @@ class Device:
                 )
             self.info = self.manager.get_device_info(matched_device)
             self.actions = self.manager.get_device_actions(matched_device)
-            return
-        raise ValueError(
-            f"Device with IP: {ip} not found. Please check the IP and port."
-        )
+        except IndexError:
+            raise ValueError(
+                f"Device with IP: {ip} not found. Please check the IP and port."
+            )
 
     def __record_command_terminal(
         self, manager: DeviceManager, record_time_s: float
