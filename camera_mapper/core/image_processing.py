@@ -300,9 +300,9 @@ class ImageProcessing:
 
                         for flow_type in apply_to:
                             value = f"COMMAND_SEQUENCE {flow_type}"
-                            if not (
+                            if (
                                 command_to_mapping["COMMAND_ACTION_AVAILABLE"][act_idx]
-                                in labeled_icons["COMMAND_CHANGE_SEQUENCE"][
+                                not in labeled_icons["COMMAND_CHANGE_SEQUENCE"][
                                     command_label
                                 ][value]
                             ):

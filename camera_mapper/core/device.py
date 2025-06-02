@@ -1,8 +1,11 @@
-import re
 import shutil
-import subprocess
 from pathlib import Path
 from threading import Thread
+
+from device_manager import DeviceActions, DeviceInfo
+from device_manager.manager_singleton import (
+    DeviceManagerSingleton as DeviceManager,
+)
 
 
 class Device:
@@ -11,68 +14,53 @@ class Device:
     recording the screen, taking screenshots, and interacting with the device.
     """
 
-    def __init__(self):
+    DEVICE_VIDEO_PATH = "/sdcard/video.mp4"
+    DEVICE_SCREENCAP_PATH = "/sdcard/DCIM/Camera/screencap.png"
+
+    def __init__(self) -> None:
         """
         Initializes the DeviceController class with default paths for storing video and screenshot files on the device.
         """
-        self.__ip_port = None
-        self.__device_video_path = "/sdcard/video.mp4"
-        self.__device_screencap_path = "/sdcard/DCIM/Camera/screencap.png"
+        self.manager = DeviceManager()
+        self.info: DeviceInfo = None
+        self.actions: DeviceActions = None
 
-    def get_device_dimensions(self) -> tuple[int, int] | None:
-        """
-        Retrieves the device screen dimensions using ADB.
-
-        Returns:
-            tuple[int, int] | None: A tuple containing the width and height of the device screen if available,
-            otherwise None.
-        """
-        result = subprocess.run(
-            ["adb", "-s", self.__ip_port, "shell", "wm", "size"],
-            capture_output=True,
-            text=True,
-        )
-        dimensions = result.stdout.strip()
-        pattern = r"(\d+)x(\d+)"
-        match = re.search(pattern, dimensions)
-        if match:
-            width, height = match.groups()
-
-            return int(width), int(height)
-
-    def connect_device(self, ip_port) -> None:
+    def connect_device(self, ip) -> None:
         """
         Connects to an Android device via ADB using the given IP and port.
 
         Args:
-            ip_port (str): The IP and port of the device to connect.
+            ip (str): The IP and port of the device to connect.
         """
-        self.__ip_port = ip_port
-        subprocess.run(f"adb connect {self.__ip_port}")
+        visible_devices = self.manager.connector.visible_devices()
+        matched_device = [
+            device.serial_number for device in visible_devices if device.ip == ip
+        ]
+        try:
+            matched_device = matched_device[0]
+            connected = self.manager.connect_devices(matched_device)
+            if not connected:
+                raise ConnectionError(
+                    f"Failed to connect to device with IP: {ip}. Please check the connection."
+                )
+            self.info = self.manager.get_device_info(matched_device)
+            self.actions = self.manager.get_device_actions(matched_device)
+        except IndexError:
+            raise ValueError(
+                f"Device with IP: {ip} not found. Please check the IP and port."
+            )
 
-    def start_server(self) -> None:
-        """
-        Starts the ADB server to manage connections to devices.
-        """
-        subprocess.run("adb start-server")
-
-    def __record_command_terminal(self, record_time_s: float) -> None:
+    def __record_command_terminal(
+        self, manager: DeviceManager, record_time_s: float
+    ) -> None:
         """
         Internal method to execute records the device screen for the specified duration and saves the video to the device.
 
         Args:
             record_time_s (float): The duration of the video recording in seconds.
         """
-        subprocess.run(
-            [
-                "adb",
-                "-s",
-                self.__ip_port,
-                "shell",
-                "screenrecord",
-                self.__device_video_path,
-                f"--time-limit={record_time_s}",
-            ]
+        manager.execute_adb_shell_command(
+            command=f"screenrecord {self.DEVICE_VIDEO_PATH} --time-limit={record_time_s}"
         )
 
     def start_record_in_device(self, record_time_s: float) -> None:
@@ -95,29 +83,20 @@ class Device:
         """
 
         full_path = base_path.joinpath(folder_name)
+
         if full_path.exists():
             shutil.rmtree(full_path)
 
         full_path.mkdir()
-
-        subprocess.run(
-            [
-                "adb",
-                "-s",
-                self.__ip_port,
-                "pull",
-                self.__device_video_path,
-                str(full_path.joinpath("video.mp4")),
-            ]
+        self.manager.execute_adb_command(
+            command=f"pull {self.DEVICE_VIDEO_PATH} {str(full_path)}"
         )
 
     def delete_video_in_device(self) -> None:
         """
         Deletes the recorded video file from the device.
         """
-        subprocess.run(
-            ["adb", "-s", self.__ip_port, "shell", "rm", self.__device_video_path]
-        )
+        self.manager.execute_adb_shell_command(command=f"rm {self.DEVICE_VIDEO_PATH}")
 
     def get_screen_image(self, path: Path, tag: str) -> None:
         """
@@ -127,48 +106,15 @@ class Device:
             path (Path): The directory where the screenshot will be saved.
             tag (str): A tag to append to the screenshot file name.
         """
-        path.joinpath
-        subprocess.run(
-            [
-                "adb",
-                "-s",
-                self.__ip_port,
-                "pull",
-                self.__device_screencap_path,
-                str(path.joinpath(f"screencap_{tag}.png")),
-            ]
+        self.actions.pull_file(
+            remote_path=self.DEVICE_SCREENCAP_PATH,
+            local_path=str(path.joinpath(f"screencap_{tag}.png")),
         )
 
     def screen_shot(self):
         """
         Takes a screenshot of the device screen and saves it to the specified path on the device.
         """
-        subprocess.run(
-            [
-                "adb",
-                "-s",
-                self.__ip_port,
-                "shell",
-                "screencap",
-                "-p",
-                self.__device_screencap_path,
-            ]
-        )
-
-    def click_by_coordinates_in_device(self, command: dict) -> None:
-        """
-        Simulates a click on the device at the specified coordinates using the ADB input command.
-
-        Args:
-            command (dict): A dictionary containing the coordinates for the click. The keys are:
-                - 'start_x': The X coordinate.
-                - 'start_y': The Y coordinate.
-        """
-
-        x = command["click_by_coordinates"]["start_x"]
-        y = command["click_by_coordinates"]["start_y"]
-
-        subprocess.run(
-            f"adb -s {self.__ip_port} shell input swipe {x} {y} {x} {y}",
-            shell=True,
+        self.manager.execute_adb_shell_command(
+            command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}"
         )

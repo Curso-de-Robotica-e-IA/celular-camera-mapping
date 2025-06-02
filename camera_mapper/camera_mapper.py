@@ -1,5 +1,15 @@
 from pathlib import Path
 
+from camera_mapper.constants import (
+    CAMERA,
+    MAPPING_REQUIREMENTS,
+    MODE,
+    PATH_TO_META_FOLDER,
+    PATH_TO_OUTPUT_FOLDER,
+    PATH_TO_TMP_FOLDER,
+    SIZE_IN_SCREEN,
+    STEPS,
+)
 from camera_mapper.core.device import Device
 from camera_mapper.core.frames_processing import FramesProcessing
 from camera_mapper.core.image_processing import ImageProcessing
@@ -17,81 +27,30 @@ class CameraMapper:
     for different camera and mode configurations on an Android device.
     """
 
-    def __init__(self, device_target, ip_port, current_step) -> None:
+    def __init__(self, device_target, ip, current_step) -> None:
         """
         Initializes the CameraMapper class with the target device, IP address, and current step of the process.
 
         Args:
             device_target (str): The name of the device to be mapped.
-            ip_port (str): The IP address and port of the device.
+            ip (str): The IP address of the device.
             current_step (int): The starting step of the mapping process.
         """
 
         self.__device_target = device_target
-        self.__ip_port = ip_port
-        path_to_base_folder = Path.cwd()
-        self.__device_objects_dir = Path.joinpath(
-            path_to_base_folder, "meta", device_target
-        )
-        self.__device_output_dir = Path.joinpath(
-            path_to_base_folder, "output", device_target
-        )
-        self.__device_tmp_output_dir = Path.joinpath(self.__device_output_dir, "tmp")
-        self.__size_in_screen = 800
-
-        self.__mapping_requirements = {
-            "STATE_REQUIRES": {
-                "CAM": ["main", "selfie"],
-                "MODE": ["photo", "portrait"],
-            },
-            "COMMAND_ACTION_AVAILABLE": [
-                "CLICK_MENU",
-                "CLICK_ACTION",
-            ],
-            "ITENS_TO_MAPPING": [
-                "CAM",
-                "MODE",
-                "ASPECT_RATIO",
-                "FLASH",
-                "TAKE_PICTURE",
-                "TOUCH",
-            ],
-            "INFO_DEVICE": [
-                "SERIAL_NUMBER_DEV",
-                "MODEL_DEV",
-                "BRAND_DEV",
-                "ANDROID_VERSION_DEV",
-                "HARDWARE_VERSION_DEV",
-                "WIDTH_DEV",
-                "CAMERA_VERSION_DEV",
-                "CAM_DEFAULT",
-                "MODE_DEFAULT",
-                "ASPECT_RATIO_DEFAULT",
-                "FLASH_DEFAULT",
-                "BLUR_DEFAULT",
-                "ZOOM_DEFAULT",
-            ],
-        }
-        self.__current_cam = "main"
-        self.__current_mode = "photo"
+        self.__ip = ip
+        self.__device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
+        self.__device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
 
         self.__current_step = current_step
-        self.__step_name_list = [
-            "mapping_start_screen",
-            "mapping_touch_for_all_screens",
-            "mapping_screens_combinations_for_cam_and_mode",
-            "mapping_menu_itens_animation_in_each_screen",
-            "mapping_menu_action_animation_in_each_screen",
-        ]
+
         self.__labeled_icons = self.create_current_context_result()
 
         self.__device = Device()
-        self.__process_img = ImageProcessing(
-            self.__size_in_screen, self.__mapping_requirements
-        )
+        self.__process_img = ImageProcessing(SIZE_IN_SCREEN, MAPPING_REQUIREMENTS)
         self.__process_frames = FramesProcessing(
             self.__device_objects_dir,
-            self.__mapping_requirements,
+            MAPPING_REQUIREMENTS,
             self.__device,
             self.__process_img,
         )
@@ -106,7 +65,7 @@ class CameraMapper:
 
         result_mapping = {"COMMAND_CHANGE_SEQUENCE": {}, "COMMANDS": []}
 
-        for elem in self.__mapping_requirements["ITENS_TO_MAPPING"]:
+        for elem in MAPPING_REQUIREMENTS["ITENS_TO_MAPPING"]:
             result_mapping["COMMAND_CHANGE_SEQUENCE"][elem] = {
                 "COMMAND_SEQUENCE ON": [],
                 "COMMAND_SEQUENCE OFF": [],
@@ -126,8 +85,8 @@ class CameraMapper:
 
         groups = []
 
-        for cur_cam in self.__mapping_requirements["STATE_REQUIRES"]["CAM"]:
-            for cur_mode in self.__mapping_requirements["STATE_REQUIRES"]["MODE"]:
+        for cur_cam in MAPPING_REQUIREMENTS["STATE_REQUIRES"]["CAM"]:
+            for cur_mode in MAPPING_REQUIREMENTS["STATE_REQUIRES"]["MODE"]:
                 element = {
                     "commands": [],
                     "requirements": {"cam": cur_cam, "mode": cur_mode},
@@ -135,28 +94,28 @@ class CameraMapper:
                     "return_to_base": [],
                 }
 
-                if cur_cam != self.__current_cam:
+                if cur_cam != CAMERA:
                     command_target_cam_name = f"cam {cur_cam}"
                     command_target_cam = get_command_in_command_list(
                         self.__labeled_icons["COMMANDS"],
                         command_target_cam_name,
-                        self.__current_cam,
-                        self.__current_mode,
+                        CAMERA,
+                        MODE,
                     )
                     element["to_requirements"].append(command_target_cam)
 
-                if cur_mode != self.__current_mode:
+                if cur_mode != MODE:
                     command_target_mode_name = f"mode {cur_mode}"
                     command_target_mode = get_command_in_command_list(
                         self.__labeled_icons["COMMANDS"],
                         command_target_mode_name,
                         cur_cam,
-                        self.__current_mode,
+                        MODE,
                     )
                     element["to_requirements"].append(command_target_mode)
 
                     # to return
-                    command_target_mode_name = f"mode {self.__current_mode}"
+                    command_target_mode_name = f"mode {MODE}"
                     command_target_mode = get_command_in_command_list(
                         self.__labeled_icons["COMMANDS"],
                         command_target_mode_name,
@@ -165,14 +124,14 @@ class CameraMapper:
                     )
                     element["return_to_base"].append(command_target_mode)
 
-                if cur_cam != self.__current_cam:
+                if cur_cam != CAMERA:
                     # return to base
-                    command_target_cam_name = f"cam {self.__current_cam}"
+                    command_target_cam_name = f"cam {CAMERA}"
                     command_target_cam = get_command_in_command_list(
                         self.__labeled_icons["COMMANDS"],
                         command_target_cam_name,
                         cur_cam,
-                        self.__current_mode,
+                        MODE,
                     )
                     element["return_to_base"].append(command_target_cam)
 
@@ -201,11 +160,11 @@ class CameraMapper:
 
         if self.__current_step == 0:
             create_or_replace_dir(self.__device_output_dir)
-            create_or_replace_dir(self.__device_tmp_output_dir)
+            create_or_replace_dir(PATH_TO_TMP_FOLDER)
             return self.__start_result_json()
         else:
             return load_labeled_icons(
-                self.__device_tmp_output_dir, f"res_step_{(self.__current_step - 1)}"
+                PATH_TO_TMP_FOLDER, f"res_step_{(self.__current_step - 1)}"
             )
 
     def flush_current_step_progress(self):
@@ -215,7 +174,7 @@ class CameraMapper:
 
         write_output_in_json(
             self.__labeled_icons,
-            self.__device_tmp_output_dir,
+            PATH_TO_TMP_FOLDER,
             f"res_step_{self.__current_step}",
         )
         self.__current_step += 1
@@ -226,9 +185,7 @@ class CameraMapper:
         """
 
         print("Mapping start screen ...")
-        current_dir = self.__device_objects_dir.joinpath(
-            f"{self.__current_cam} {self.__current_mode}"
-        )
+        current_dir = self.__device_objects_dir.joinpath(f"{CAMERA} {MODE}")
         create_or_replace_dir(self.__device_objects_dir)
         create_or_replace_dir(current_dir)
 
@@ -238,8 +195,8 @@ class CameraMapper:
         self.__process_img.process_screen_step_by_step(
             self.__labeled_icons,
             current_dir.joinpath("screencap_start_screen.png"),
-            self.__current_cam,
-            self.__current_mode,
+            CAMERA,
+            MODE,
         )
 
     def mapping_touch_for_all_screens(self):
@@ -248,11 +205,8 @@ class CameraMapper:
         """
 
         print("Mapping touch for all screens ...")
-        dimension = self.__device.get_device_dimensions()
-
-        if dimension:
-            width = dimension[0]
-            height = dimension[1]
+        try:
+            width, height = self.__device.info.get_screen_dimensions()
 
             command = {}
             command["command_name"] = "touch"
@@ -274,7 +228,7 @@ class CameraMapper:
             self.__labeled_icons["COMMAND_CHANGE_SEQUENCE"]["TOUCH"]["COMMAND_SLEEPS"][
                 "CLICK_ACTION"
             ] = 2
-        else:
+        except IndexError:
             raise RuntimeError("Error in get dimension of device")
 
     def mapping_screens_combinations_for_cam_and_mode(self):
@@ -285,7 +239,7 @@ class CameraMapper:
         print("Mapping changes in cam and mode ...")
 
         self.__process_frames.cam_and_mode_gradle_remapping(
-            self.__labeled_icons, self.__current_cam, self.__current_mode
+            self.__labeled_icons, CAMERA, MODE
         )
 
     def mapping_menu_itens_animation_in_each_screen(self):
@@ -319,13 +273,12 @@ class CameraMapper:
         Executes the mapping process by looping through each step, waiting for user input before proceeding.
         """
 
-        self.__device.start_server()
-        self.__device.connect_device(self.__ip_port)
+        self.__device.connect_device(self.__ip)
 
-        for method_name in self.__step_name_list[self.__current_step :]:
+        for method_name in STEPS[self.__current_step :]:
             print("Execute ", method_name)
             input(
-                f"Check if the device has the camera open with the configuration: Cam={self.__current_cam}, Mode={self.__current_mode}\nPress enter after check..."
+                f"Check if the device has the camera open with the configuration: Cam={CAMERA}, Mode={MODE}\nPress enter after check..."
             )
             cur_step = getattr(self, method_name)
             cur_step()
