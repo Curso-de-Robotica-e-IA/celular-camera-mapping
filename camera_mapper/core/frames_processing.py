@@ -4,8 +4,8 @@ from time import sleep
 import cv2
 from sewar.full_ref import mse
 
-from camera_mapper.core.device import Device
-from camera_mapper.core.image_processing import ImageProcessing
+from camera_mapper.device import Device
+from camera_mapper.screen_processing.image_processing import ImageProcessing
 from camera_mapper.utils import create_or_replace_dir, get_command_in_command_list
 
 

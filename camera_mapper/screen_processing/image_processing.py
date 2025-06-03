@@ -1,11 +1,219 @@
 import math
 from pathlib import Path
+from typing import Dict
 
 import cv2
 import numpy as np
 
 from camera_mapper.entities import ClickableBox, Point
 from camera_mapper.utils import show_image_in_thread
+
+
+def load_image(image_path: Path) -> cv2.typing.MatLike:
+    """
+    Load an image from the specified path.
+
+    Args:
+        image_path (Path): The path to the image file.
+
+    Returns:
+        cv2.typing.MatLike: The loaded image.
+    Raises:
+        FileNotFoundError: If the image file does not exist or cannot be read.
+    """
+    return cv2.imread(str(image_path))
+
+
+def merge_contours(
+    contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike
+) -> cv2.typing.MatLike:
+    """
+    Merge two contours into one.
+
+    Args:
+        contour1 (cv2.typing.MatLike): The first contour.
+        contour2 (cv2.typing.MatLike): The second contour.
+
+    Returns:
+        cv2.typing.MatLike: The merged contour.
+    """
+
+    return np.concatenate((contour1, contour2), axis=0)
+
+
+def calculate_contour_distance(
+    contour1: cv2.typing.MatLike, contour2: cv2.typing.MatLike
+) -> int:
+    """
+    Calculate the distance between two contours.
+
+    Args:
+        contour1 (cv2.typing.MatLike): The first contour.
+        contour2 (cv2.typing.MatLike): The second contour.
+
+    Returns:
+        int: The calculated distance between the two contours.
+    """
+
+    x1, y1, w1, h1 = cv2.boundingRect(contour1)
+    c_x1 = x1 + w1 / 2
+    c_y1 = y1 + h1 / 2
+
+    x2, y2, w2, h2 = cv2.boundingRect(contour2)
+    c_x2 = x2 + w2 / 2
+    c_y2 = y2 + h2 / 2
+
+    return max(abs(c_x1 - c_x2) - (w1 + w2) / 2, abs(c_y1 - c_y2) - (h1 + h2) / 2)
+
+
+def agglomerative_cluster(
+    contours: cv2.typing.MatLike, threshold_distance: int
+) -> cv2.typing.MatLike:
+    """
+    Perform agglomerative clustering to merge contours that are within a certain distance of each other.
+
+    Args:
+        contours (cv2.typing.MatLike): A list of contours.
+        threshold_distance (int): The distance threshold for merging contours.
+
+    Returns:
+        cv2.typing.MatLike: The clustered contours.
+    """
+
+    current_contours = contours
+    while len(current_contours) > 1:
+        min_distance = None
+        min_coordinate = None
+
+        for x in range(len(current_contours) - 1):
+            for y in range(x + 1, len(current_contours)):
+                distance = calculate_contour_distance(
+                    current_contours[x], current_contours[y]
+                )
+                if min_distance is None:
+                    min_distance = distance
+                    min_coordinate = (x, y)
+                elif distance < min_distance:
+                    min_distance = distance
+                    min_coordinate = (x, y)
+
+        if min_distance < threshold_distance:
+            index1, index2 = min_coordinate
+            current_contours[index1] = merge_contours(
+                current_contours[index1], current_contours[index2]
+            )
+            current_contours.pop(index2)
+        else:
+            break
+
+    return current_contours
+
+
+def find_contours_in_image(image: cv2.typing.MatLike) -> Dict[str, np.ndarray]:
+    """
+    Find contours in an image and return a list of clickable boxes.
+
+    Args:
+        image (cv2.typing.MatLike): The input image.
+
+    Returns:
+        Dict[str, np.ndarray]: A dictionary where keys are centroids of detected contours
+                                and values are arrays containing the start and end points of the bounding rectangles.
+    """
+
+    edged = cv2.Canny(image, 30, 200)
+    contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    contours_list = []
+    for elem in contours:
+        contours_list.append(elem)
+
+    threshold = math.sqrt((image.shape[0] / 100) ** 2 + (image.shape[1] / 100) ** 2)
+
+    filters_contours = agglomerative_cluster(contours_list, threshold)
+
+    detections = {}
+
+    for cnt in filters_contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        begin = np.array([x, y])
+        end = np.array([x + w, y + h])
+        centroid = (begin + end) // 2
+        centroid = f"{centroid[0]}:{centroid[1]}"
+        detections[centroid] = np.array([begin, end], dtype=np.int32)
+
+    return detections
+
+
+def draw_clickable_elements(
+    image: np.ndarray, clickables: Dict[str, np.ndarray]
+) -> np.ndarray:
+    """
+    Draw clickable elements on an image.
+
+    Args:
+        image (np.ndarray): The image to draw on.
+        clickables (Dict[str, np.ndarray]): A dictionary of clickable elements with their bounds.
+
+    Returns:
+        np.ndarray: The image with clickable elements highlighted.
+    """
+    new_image = image.copy()
+    for centroid, bounds in clickables.items():
+        cv2.rectangle(new_image, bounds[0], bounds[1], (0, 255, 0), 2)
+        cv2.putText(
+            new_image,
+            centroid,
+            (bounds[0][0], bounds[0][1], -10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+        )
+    return new_image
+
+
+def centroid_in_bounds(centroid: str, bounds: np.ndarray) -> bool:
+    """
+    Check if a centroid is within the bounds defined by a bounding rectangle.
+
+    Args:
+        centroid (str): The centroid in the format "x:y".
+        bounds (np.ndarray): An array containing the start and end points of the bounding rectangle.
+
+    Returns:
+        bool: True if the centroid is within the bounds, False otherwise.
+    """
+    x, y = map(int, centroid.split(":"))
+    return bounds[0][0] <= x <= bounds[1][0] and bounds[0][1] <= y <= bounds[1][1]
+
+
+def merge_bounds(
+    from_image: Dict[str, np.ndarray], from_xml: Dict[str, np.ndarray]
+) -> Dict[str, np.ndarray]:
+    """
+    Merge bounds from image and XML data.
+
+    Args:
+        from_image (Dict[str, np.ndarray]): Bounds extracted from the image.
+        from_xml (Dict[str, np.ndarray]): Bounds extracted from the XML.
+
+    Returns:
+        Dict[str, np.ndarray]: Merged bounds.
+    """
+    uncommon_bounds = {}
+    for image_centroid, image_bounds in from_image.items():
+        found_common = False
+        for xml_bounds in from_xml.values():
+            if centroid_in_bounds(image_centroid, xml_bounds):
+                found_common = True
+                break
+        if not found_common:
+            uncommon_bounds[image_centroid] = image_bounds
+    merged_bounds = {}
+    merged_bounds.update(from_xml)
+    merged_bounds.update(uncommon_bounds)
+    return merged_bounds
 
 
 class ImageProcessing:

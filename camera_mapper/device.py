@@ -98,23 +98,30 @@ class Device:
         """
         self.manager.execute_adb_shell_command(command=f"rm {self.DEVICE_VIDEO_PATH}")
 
-    def get_screen_image(self, path: Path, tag: str) -> None:
+    def screen_shot(self, path: Path, tag: str) -> None:
         """
-        Pulls a screenshot file from the device and saves it to the specified local directory with a tag.
+        Takes a screenshot and pull it from the device, saving it to the specified local directory with a tag.
 
         Args:
             path (Path): The directory where the screenshot will be saved.
             tag (str): A tag to append to the screenshot file name.
         """
+        self.manager.execute_adb_shell_command(
+            command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}"
+        )
         self.actions.pull_file(
             remote_path=self.DEVICE_SCREENCAP_PATH,
             local_path=str(path.joinpath(f"screencap_{tag}.png")),
         )
 
-    def screen_shot(self):
+    def save_screen_gui_xml(self, path: Path, tag: str) -> None:
         """
-        Takes a screenshot of the device screen and saves it to the specified path on the device.
+        Saves the current screen's GUI XML information from the device into
+        device_screen_gui.xml file in the specified path with a tag.
         """
-        self.manager.execute_adb_shell_command(
-            command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}"
-        )
+        xml_info = self.info.get_screen_gui_xml()
+        if xml_info is None:
+            raise ValueError("Failed to retrieve screen GUI XML information.")
+        xml_file_path = path.joinpath(f"device_screen_gui_{tag}.xml")
+        with open(xml_file_path, "w", encoding="utf-8") as file:
+            file.write(xml_info)

@@ -12,14 +12,26 @@ class CameraMapperFSM(GraphMachine):
             name="device_connection",
             on_enter=["connect_device"],
         )
-        connection_error = State(
-            name="connection_error",
-            on_enter=["raise_connection_error"],
+        general_error = State(
+            name="general_error",
+            on_enter=["raise_error"],
         )
+        # Camera application open loop
+        camera_open = State(
+            name="camera_open",
+            on_enter=["open_camera"],
+        )
+        camera_app_check = State(
+            name="camera_app_check",
+            on_enter=["check_camera_app"],
+        )
+        # Screen capture loop
         screen_capture = State(
             name="screen_capture",
             on_enter=["capture_screen"],
+            on_exit=["process_screen"],
         )
+        # Action clickable elements check loop
         actions_check = State(
             name="actions_check",
         )
@@ -27,6 +39,7 @@ class CameraMapperFSM(GraphMachine):
             name="action_check",
             on_enter=["check_action"],
         )
+        # Menu clickable elements check loop
         menu_check = State(
             name="menu_check",
         )
@@ -42,7 +55,9 @@ class CameraMapperFSM(GraphMachine):
         states = [
             idle,
             device_connection,
-            connection_error,
+            general_error,
+            camera_open,
+            camera_app_check,
             screen_capture,
             actions_check,
             action_check,
@@ -57,31 +72,52 @@ class CameraMapperFSM(GraphMachine):
                 "trigger": "idle_to_device_connection",
                 "source": "idle",
                 "dest": "device_connection",
-                "after": ["connect_device"],
             },
             {
-                "trigger": "device_connection_to_connection_error",
+                "trigger": "device_connection_to_general_error",
                 "source": "device_connection",
-                "dest": "connection_error",
+                "dest": "general_error",
                 "unless": ["connected"],
             },
             {
-                "trigger": "device_connection_to_screen_capture",
+                "trigger": "device_connection_to_camera_open",
                 "source": "device_connection",
-                "dest": "screen_capture",
+                "dest": "camera_open",
                 "conditions": ["connected"],
             },
             {
-                "trigger": "screen_capture_to_screen_capture",
-                "source": "screen_capture",
+                "trigger": "camera_open_to_camera_app_check",
+                "source": "camera_open",
+                "dest": "camera_app_check",
+            },
+            {
+                "trigger": "camera_app_check_to_camera_open",
+                "source": "camera_app_check",
+                "dest": "camera_open",
+                "unless": ["camera_app_opened"],
+            },
+            {
+                "trigger": "camera_app_check_to_general_error",
+                "source": "camera_app_check",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
+                "trigger": "camera_app_check_to_screen_capture",
+                "source": "camera_app_check",
                 "dest": "screen_capture",
-                "unless": ["visible_screen"],
+                "conditions": ["camera_app_opened"],
+            },
+            {
+                "trigger": "screen_capture_to_general_error",
+                "source": "screen_capture",
+                "dest": "general_error",
+                "unless": ["in_error"],
             },
             {
                 "trigger": "screen_capture_to_actions_check",
                 "source": "screen_capture",
                 "dest": "actions_check",
-                "conditions": ["visible_screen"],
             },
             {
                 "trigger": "actions_check_to_action_check",

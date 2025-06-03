@@ -1,0 +1,238 @@
+from pathlib import Path
+from typing import Dict
+from xml.etree.ElementTree import ElementTree
+
+import cv2
+import numpy as np
+
+from camera_mapper.constants import (
+    CAMERA,
+    MAPPING_REQUIREMENTS,
+    MODE,
+    PATH_TO_META_FOLDER,
+    PATH_TO_OUTPUT_FOLDER,
+    PATH_TO_TMP_FOLDER,
+    SIZE_IN_SCREEN,
+    STEPS,
+)
+from camera_mapper.device import Device
+from camera_mapper.screen_processing.image_processing import (
+    find_contours_in_image,
+    load_image,
+    merge_bounds,
+    draw_clickable_elements,
+)
+from camera_mapper.screen_processing.xml_processing import (
+    clickable_elements,
+)
+from camera_mapper.utils import (
+    create_or_replace_dir,
+    get_command_in_command_list,
+    load_labeled_icons,
+    write_output_in_json,
+)
+
+
+class CameraMapperModel:
+    def __init__(self, device_target, ip, current_step) -> None:
+        """
+        Initializes the CameraMapper class with the target device, IP address, and current step of the process.
+
+        Args:
+            device_target (str): The name of the device to be mapped.
+            ip (str): The IP address of the device.
+            current_step (int): The starting step of the mapping process.
+        """
+
+        self.__device_target = device_target
+        self.__ip = ip
+        self.__device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
+        self.__device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
+        self.__current_step = current_step
+        self.__labeled_icons = self.create_current_context_result()
+        self.__device = Device()
+        self.__n_actions = 0
+        self.__n_menus = 0
+        self.__camera_app_open_attempts = 0
+        self.__error: Exception = None
+        self.__clickables: Dict[str, np.ndarray] = {}
+
+    # region: error_handling
+    def raise_error(self) -> None:
+        """
+        Raises the stored error if it exists.
+        Raises:
+            Exception: If an error has been stored, it raises that error.
+        """
+        raise self.__error
+
+    def in_error(self) -> bool:
+        """
+        Checks if there is an error stored in the model.
+        Returns:
+            bool: True if there is an error, False otherwise.
+        """
+        return self.__error is not None
+
+    # endregion: error_handling
+
+    # region: device_connection
+    def connect_device(self) -> None:
+        """
+        Connects to the device using the provided IP address.
+        """
+        self.__device.connect_device(self.__ip)
+
+    def connected(self):
+        """
+        Checks if the device is connected.
+        Returns:
+            bool: True if the device is connected, False otherwise.
+        """
+        is_connected = len(self.__device.manager) > 0
+        if not is_connected:
+            self.__error = ConnectionError(
+                f"Device {self.__device_target} not connected. Please check the IP address."
+            )
+        return is_connected
+
+    # endregion: device_connection
+
+    # region: Camera application open loop
+    def open_camera(self) -> None:
+        """
+        Opens the camera application on the device.
+        """
+        self.__device.actions.camera.open()
+
+    def check_camera_app(self) -> None:
+        """
+        Checks if the camera application is open on the device.
+        If not, it attempts to open it again.
+        """
+        current_activity = self.__device.info.actual_activity().lower()
+        camera_opened = "cam" in current_activity
+        self.__camera_app_open_attempts += 1
+        if not camera_opened and self.__camera_app_open_attempts > 3:
+            self.__error = RuntimeError(
+                f"Failed to open camera app after {self.__camera_app_open_attempts} attempts."
+            )
+        return camera_opened
+
+    # endregion: Camera application open loop
+
+    # region: Screen capture loop
+    def capture_screen(self):
+        """
+        Captures the current screen of the device and saves it to a temporary folder.
+        """
+        create_or_replace_dir(PATH_TO_TMP_FOLDER)
+        self.__device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=self.__current_step)
+        self.__device.save_screen_gui_xml(
+            path=PATH_TO_TMP_FOLDER, tag=self.__current_step
+        )
+
+    def process_screen_gui_xml(
+        self, xml: ElementTree, image: np.ndarray
+    ) -> Dict[str, np.ndarray]:
+        """
+        Processes the GUI XML of the captured screen to extract clickable elements and labeled icons.
+        Args:
+            xml (ElementTree): The XML ElementTree representing the GUI of the captured screen.
+            image (np.ndarray): The captured screen image.
+        Returns:
+            Dict[str, np.ndarray]: A dictionary where keys are resource IDs of clickable elements
+                                   and values are their bounds.
+        """
+        clickables = clickable_elements(xml)
+        if not clickables:
+            self.__error = ValueError(
+                "No clickable elements found in the screen GUI XML."
+            )
+        try:
+            cv2.imwrite(
+                PATH_TO_TMP_FOLDER.joinpath("xml_clickable_elements.png"),
+                draw_clickable_elements(image, clickables),
+            )
+        except Exception as e:
+            self.__error = e
+        return clickables
+
+    def process_screen_image(self, image: np.ndarray) -> Dict[str, np.ndarray]:
+        """
+        Processes the captured screen image to extract information such as actions and menus.
+        Args:
+            image (np.ndarray): The captured screen image.
+        Returns:
+            Dict[str, np.ndarray]: A dictionary where keys are centroids of clickable elements
+                                   and values are their bounds after processing the image.
+        """
+        contours = find_contours_in_image(image)
+        if contours is None:
+            self.__error = ValueError("No contours found in the screen image.")
+            return
+        try:
+            cv2.imwrite(
+                PATH_TO_TMP_FOLDER.joinpath("image_clickable_elements.png"),
+                draw_clickable_elements(image, contours),
+            )
+        except Exception as e:
+            self.__error = e
+        return contours
+
+    def process_screen(self) -> None:
+        """
+        Processes the captured screen image to extract information such as actions and menus.
+        """
+        try:
+            image = load_image(
+                PATH_TO_TMP_FOLDER.joinpath(f"screencap_{self.__current_step}.png")
+            )
+            xml_tree = ElementTree(
+                file=PATH_TO_TMP_FOLDER.joinpath(
+                    f"device_screen_gui_{self.__current_step}.xml"
+                )
+            )
+        except Exception as e:
+            self.__error = e
+            return
+
+        xml_clickables = self.process_screen_gui_xml(xml_tree, image)
+        image_clickables = self.process_screen_image(image)
+
+        self.__clickables = merge_bounds(image_clickables, xml_clickables)
+        try:
+            cv2.imwrite(
+                PATH_TO_TMP_FOLDER.joinpath("merged_clickable_elements.png"),
+                draw_clickable_elements(image, self.__clickables),
+            )
+        except Exception as e:
+            self.__error = e
+        if self.__clickables is None:
+            self.__error = ValueError(
+                "No clickable elements found in the screen image."
+            )
+
+    # endregion: Screen capture loop
+
+    # region: Action clickable elements check loop
+    def has_action(self):
+        return self.__n_actions > 0
+
+    def check_action(self):
+        raise NotImplementedError("Implement This Model Behavior.")
+
+    # endregion: Action clickable elements check loop
+
+    # region: Menu clickable elements check loop
+    def has_menu(self) -> bool:
+        """Checks if the current screen has a menu button displayed yet to be checked."""
+        return self.__n_menus > 0
+
+    def check_menu(self):
+        raise NotImplementedError("Implement This Model Behavior.")
+
+    # endregion: Menu clickable elements check loop
+
+    def success_message(self):
+        raise NotImplementedError("Implement This Model Behavior.")
