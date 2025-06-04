@@ -122,9 +122,6 @@ class Device:
             remote_path=self.DEVICE_SCREENCAP_PATH,
             local_path=str(path.joinpath(f"original_{tag}.png")),
         )
-        image = load_image(path.joinpath(f"original_{tag}.png"))
-        resized_image = proportional_resize(image, target_height=SIZE_IN_SCREEN)
-        cv2.imwrite(str(path.joinpath(f"original_{tag}.png")), resized_image)
         time.sleep(1)
 
     def save_screen_gui_xml(self, path: Path, tag: str) -> None:
