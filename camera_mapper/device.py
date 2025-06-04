@@ -1,10 +1,18 @@
 import shutil
 from pathlib import Path
 from threading import Thread
+import time
 
+import cv2
 from device_manager import DeviceActions, DeviceInfo
 from device_manager.manager_singleton import (
     DeviceManagerSingleton as DeviceManager,
+)
+
+from camera_mapper.constants import SIZE_IN_SCREEN
+from camera_mapper.screen_processing.image_processing import (
+    load_image,
+    proportional_resize,
 )
 
 
@@ -109,10 +117,15 @@ class Device:
         self.manager.execute_adb_shell_command(
             command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}"
         )
+        time.sleep(1)
         self.actions.pull_file(
             remote_path=self.DEVICE_SCREENCAP_PATH,
-            local_path=str(path.joinpath(f"screencap_{tag}.png")),
+            local_path=str(path.joinpath(f"original_{tag}.png")),
         )
+        image = load_image(path.joinpath(f"original_{tag}.png"))
+        resized_image = proportional_resize(image, target_height=SIZE_IN_SCREEN)
+        cv2.imwrite(str(path.joinpath(f"original_{tag}.png")), resized_image)
+        time.sleep(1)
 
     def save_screen_gui_xml(self, path: Path, tag: str) -> None:
         """
