@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 from typing import Dict
 from xml.etree.ElementTree import ElementTree
 
@@ -16,6 +17,11 @@ from camera_mapper.constants import (
     STEPS,
 )
 from camera_mapper.device import Device
+from camera_mapper.image_labeling import (
+    click_on_image,
+    confirm_labeling,
+    match_elements_to_clicks,
+)
 from camera_mapper.screen_processing.image_processing import (
     find_contours_in_image,
     load_image,
@@ -49,13 +55,20 @@ class CameraMapperModel:
         self.__device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
         self.__device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
         self.__current_step = current_step
-        self.__labeled_icons = self.create_current_context_result()
         self.__device = Device()
-        self.__n_actions = 0
         self.__n_menus = 0
         self.__camera_app_open_attempts = 0
         self.__error: Exception = None
         self.__clickables: Dict[str, np.ndarray] = {}
+        self.__action_check_done = False
+        self.__action_elements: Dict[str, np.ndarray] = {}
+
+    def current_state(self) -> str:
+        """
+        Prints the current state of the model.
+        """
+        print("\n================================")
+        print(f"\nState machine's current state: {self.state}")
 
     # region: error_handling
     def raise_error(self) -> None:
@@ -64,6 +77,7 @@ class CameraMapperModel:
         Raises:
             Exception: If an error has been stored, it raises that error.
         """
+        print(self.__error)
         raise self.__error
 
     def in_error(self) -> bool:
@@ -104,6 +118,7 @@ class CameraMapperModel:
         Opens the camera application on the device.
         """
         self.__device.actions.camera.open()
+        time.sleep(2)  # Wait for the camera app to open
 
     def check_camera_app(self) -> None:
         """
@@ -127,7 +142,7 @@ class CameraMapperModel:
         Captures the current screen of the device and saves it to a temporary folder.
         """
         create_or_replace_dir(PATH_TO_TMP_FOLDER)
-        self.__device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=self.__current_step)
+        self.__device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=f"{CAMERA}_{MODE}")
         self.__device.save_screen_gui_xml(
             path=PATH_TO_TMP_FOLDER, tag=self.__current_step
         )
@@ -186,7 +201,7 @@ class CameraMapperModel:
         """
         try:
             image = load_image(
-                PATH_TO_TMP_FOLDER.joinpath(f"screencap_{self.__current_step}.png")
+                PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
             )
             xml_tree = ElementTree(
                 file=PATH_TO_TMP_FOLDER.joinpath(
@@ -200,14 +215,15 @@ class CameraMapperModel:
         xml_clickables = self.process_screen_gui_xml(xml_tree, image)
         image_clickables = self.process_screen_image(image)
 
-        self.__clickables = merge_bounds(image_clickables, xml_clickables)
+        clickables = merge_bounds(image_clickables, xml_clickables)
         try:
             cv2.imwrite(
-                PATH_TO_TMP_FOLDER.joinpath("merged_clickable_elements.png"),
-                draw_clickable_elements(image, self.__clickables),
+                PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png"),
+                draw_clickable_elements(image, clickables),
             )
         except Exception as e:
             self.__error = e
+        self.__clickables = clickables
         if self.__clickables is None:
             self.__error = ValueError(
                 "No clickable elements found in the screen image."
@@ -216,11 +232,45 @@ class CameraMapperModel:
     # endregion: Screen capture loop
 
     # region: Action clickable elements check loop
-    def has_action(self):
-        return self.__n_actions > 0
+    def mark_actions(self) -> None:
+        """
+        Marks the clickable elements in the captured screen image and allows the user to mark action elements.
+        """
+        self.__action_elements = {}
+        print(
+            "Please mark the action elements in the image by clicking on them with the mouse's left button."
+        )
+        print("Press 'Esc' to finish marking.")
+        marked_points = click_on_image(
+            PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png")
+        )
+        if len(marked_points) == 0:
+            self.__error = ValueError("No action elements were marked.")
+            return
+        self.__action_elements = match_elements_to_clicks(
+            clicks=marked_points, clickables=self.__clickables
+        )
 
-    def check_action(self):
-        raise NotImplementedError("Implement This Model Behavior.")
+    def confirm_actions(self) -> None:
+        """
+        Confirms the actions that have been clicked by the user by showing them on the screen and the user chooses to accept or not.
+        """
+        if not self.__action_elements:
+            self.__error = ValueError("No action elements to confirm.")
+            return
+        self.__action_check_done = confirm_labeling(
+            PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"),
+            self.__action_elements,
+            label_name="Actions",
+        )
+
+    def actions_check_done(self) -> bool:
+        """
+        Checks if there are any actions on screen to be marked.
+        Returns:
+            bool: True if there are actions, False otherwise.
+        """
+        return self.__action_check_done
 
     # endregion: Action clickable elements check loop
 
@@ -235,4 +285,4 @@ class CameraMapperModel:
     # endregion: Menu clickable elements check loop
 
     def success_message(self):
-        raise NotImplementedError("Implement This Model Behavior.")
+        print(f"Device {self.__device_target} mapping completed successfully.")

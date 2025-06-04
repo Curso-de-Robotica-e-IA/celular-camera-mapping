@@ -7,49 +7,48 @@ class CameraMapperFSM(GraphMachine):
         """Constructor of the base `CameraMapperFSM` class."""
         idle = State(
             name="idle",
+            on_enter=["current_state"],
         )
         device_connection = State(
             name="device_connection",
-            on_enter=["connect_device"],
+            on_enter=["current_state", "connect_device"],
         )
         general_error = State(
             name="general_error",
-            on_enter=["raise_error"],
+            on_enter=["current_state", "raise_error"],
         )
         # Camera application open loop
         camera_open = State(
             name="camera_open",
-            on_enter=["open_camera"],
-        )
-        camera_app_check = State(
-            name="camera_app_check",
-            on_enter=["check_camera_app"],
+            on_enter=["current_state", "open_camera"],
         )
         # Screen capture loop
         screen_capture = State(
             name="screen_capture",
-            on_enter=["capture_screen"],
+            on_enter=["current_state", "capture_screen"],
             on_exit=["process_screen"],
         )
         # Action clickable elements check loop
         actions_check = State(
             name="actions_check",
+            on_enter=["current_state", "mark_actions"],
         )
-        action_check = State(
-            name="action_check",
-            on_enter=["check_action"],
+        action_confirmation = State(
+            name="action_confirmation",
+            on_enter=["current_state", "confirm_actions"],
         )
         # Menu clickable elements check loop
         menu_check = State(
             name="menu_check",
+            on_enter=["current_state"],
         )
         menus_check = State(
             name="menus_check",
-            on_enter=["check_menu"],
+            on_enter=["current_state", "check_menu"],
         )
         finished = State(
             name="finished",
-            on_enter=["success_message"],
+            on_enter=["current_state", "success_message"],
         )
 
         states = [
@@ -57,10 +56,9 @@ class CameraMapperFSM(GraphMachine):
             device_connection,
             general_error,
             camera_open,
-            camera_app_check,
             screen_capture,
             actions_check,
-            action_check,
+            action_confirmation,
             menu_check,
             menus_check,
             finished,
@@ -86,33 +84,28 @@ class CameraMapperFSM(GraphMachine):
                 "conditions": ["connected"],
             },
             {
-                "trigger": "camera_open_to_camera_app_check",
+                "trigger": "camera_open_to_camera_open",
                 "source": "camera_open",
                 "dest": "camera_app_check",
+                "unless": ["check_camera_app"],
             },
             {
-                "trigger": "camera_app_check_to_camera_open",
-                "source": "camera_app_check",
-                "dest": "camera_open",
-                "unless": ["camera_app_opened"],
-            },
-            {
-                "trigger": "camera_app_check_to_general_error",
-                "source": "camera_app_check",
+                "trigger": "camera_open_to_general_error",
+                "source": "camera_open",
                 "dest": "general_error",
                 "conditions": ["in_error"],
             },
             {
-                "trigger": "camera_app_check_to_screen_capture",
-                "source": "camera_app_check",
+                "trigger": "camera_open_to_screen_capture",
+                "source": "camera_open",
                 "dest": "screen_capture",
-                "conditions": ["camera_app_opened"],
+                "conditions": ["check_camera_app"],
             },
             {
                 "trigger": "screen_capture_to_general_error",
                 "source": "screen_capture",
                 "dest": "general_error",
-                "unless": ["in_error"],
+                "conditions": ["in_error"],
             },
             {
                 "trigger": "screen_capture_to_actions_check",
@@ -120,41 +113,52 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "actions_check",
             },
             {
-                "trigger": "actions_check_to_action_check",
+                "trigger": "actions_check_to_confirm_actions",
                 "source": "actions_check",
-                "dest": "action_check",
-                "conditions": ["has_action"],
+                "dest": "action_confirmation",
             },
             {
-                "trigger": "action_check_to_actions_check",
-                "source": "action_check",
+                "trigger": "confirm_actions_to_actions_check",
+                "source": "action_confirmation",
                 "dest": "actions_check",
-                "after": ["check_action"],
+                "unless": ["actions_check_done"],
             },
             {
-                "trigger": "actions_check_to_menus_check",
+                "trigger": "actions_check_to_general_error",
                 "source": "actions_check",
-                "dest": "menus_check",
-                "unless": ["has_action"],
+                "dest": "general_error",
+                "conditions": ["in_error"],
             },
             {
-                "trigger": "menus_check_to_menu_check",
-                "source": "menus_check",
-                "dest": "menu_check",
-                "conditions": ["has_menu"],
-            },
-            {
-                "trigger": "menu_check_to_menus_check",
-                "source": "menu_check",
-                "dest": "menus_check",
-                "after": ["check_menu"],
-            },
-            {
-                "trigger": "menus_check_to_finished",
-                "source": "menus_check",
+                "trigger": "confirm_actions_to_finished",
+                "source": "action_confirmation",
                 "dest": "finished",
-                "unless": ["has_menu"],
+                "conditions": ["actions_check_done"],
             },
+            # {
+            #     "trigger": "actions_check_to_menus_check",
+            #     "source": "actions_check",
+            #     "dest": "menus_check",
+            #     "unless": ["actions_check_done"],
+            # },
+            # {
+            #     "trigger": "menus_check_to_menu_check",
+            #     "source": "menus_check",
+            #     "dest": "menu_check",
+            #     "conditions": ["has_menu"],
+            # },
+            # {
+            #     "trigger": "menu_check_to_menus_check",
+            #     "source": "menu_check",
+            #     "dest": "menus_check",
+            #     "after": ["check_menu"],
+            # },
+            # {
+            #     "trigger": "menus_check_to_finished",
+            #     "source": "menus_check",
+            #     "dest": "finished",
+            #     "unless": ["has_menu"],
+            # },
         ]
 
         super().__init__(
@@ -182,7 +186,6 @@ class CameraMapperFSM(GraphMachine):
         """
         available_transitions = self.get_triggers(self.state)
         available_transitions = available_transitions[len(self.states) :]
-
         for curr_transition in available_transitions:
             may_method_result = self.may_trigger(curr_transition)
             if may_method_result:
