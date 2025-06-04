@@ -159,12 +159,13 @@ def draw_clickable_elements(
         np.ndarray: The image with clickable elements highlighted.
     """
     new_image = image.copy()
-    for centroid, bounds in clickables.items():
+
+    for bounds in clickables.values():
         cv2.rectangle(new_image, bounds[0], bounds[1], (0, 255, 0), 2)
         cv2.putText(
             new_image,
-            centroid,
-            (bounds[0][0], bounds[0][1], -10),
+            "",
+            (bounds[0][0], bounds[0][1]),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0, 255, 0),
@@ -214,6 +215,32 @@ def merge_bounds(
     merged_bounds.update(from_xml)
     merged_bounds.update(uncommon_bounds)
     return merged_bounds
+
+
+def proportional_resize(image, target_width=None, target_height=None):
+    """
+    Resize an image proportionally to fit within the specified target width and height.
+    """
+    height, width = image.shape[:2]
+
+    if target_width is None and target_height is None:
+        return image
+
+    if target_width is None:
+        scale_factor = target_height / height
+    elif target_height is None:
+        scale_factor = target_width / width
+    else:
+        scale_factor = min(target_width / width, target_height / height)
+
+    new_width = int(width * scale_factor)
+    new_height = int(height * scale_factor)
+
+    resized_image = cv2.resize(
+        image, (new_width, new_height), interpolation=cv2.INTER_AREA
+    )
+
+    return resized_image
 
 
 class ImageProcessing:
