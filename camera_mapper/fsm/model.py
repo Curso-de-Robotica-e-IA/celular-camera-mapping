@@ -13,8 +13,6 @@ from camera_mapper.constants import (
     PATH_TO_META_FOLDER,
     PATH_TO_OUTPUT_FOLDER,
     PATH_TO_TMP_FOLDER,
-    SIZE_IN_SCREEN,
-    STEPS,
 )
 from camera_mapper.device import Device
 from camera_mapper.image_labeling import (
@@ -31,12 +29,7 @@ from camera_mapper.screen_processing.image_processing import (
 from camera_mapper.screen_processing.xml_processing import (
     clickable_elements,
 )
-from camera_mapper.utils import (
-    create_or_replace_dir,
-    get_command_in_command_list,
-    load_labeled_icons,
-    write_output_in_json,
-)
+from camera_mapper.utils import create_or_replace_dir
 
 
 class CameraMapperModel:
@@ -224,6 +217,9 @@ class CameraMapperModel:
         except Exception as e:
             self.__error = e
         self.__clickables = clickables
+        print("Clickable elements found in the screen image:")
+        for centroid, bounds in self.__clickables.items():
+            print(f"Centroid: {centroid}, Bounds: {bounds}")
         if self.__clickables is None:
             self.__error = ValueError(
                 "No clickable elements found in the screen image."
