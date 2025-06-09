@@ -9,6 +9,9 @@ SIZE_IN_SCREEN = 720
 CAMERA = "main"
 MODE = "photo"
 
+SWITCH_CAM_NAMES = ["switch", "selfie", "main"]
+CAPTURE_NAMES = ["take_picture", "capture", "photo"]
+
 MAPPING_REQUIREMENTS = {
     "STATE_REQUIRES": {
         "CAM": ["main", "selfie"],

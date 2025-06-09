@@ -1,6 +1,6 @@
 from pathlib import Path
 import time
-from typing import Dict
+from typing import Dict, Tuple
 from xml.etree.ElementTree import ElementTree
 
 import cv2
@@ -8,11 +8,11 @@ import numpy as np
 
 from camera_mapper.constants import (
     CAMERA,
-    MAPPING_REQUIREMENTS,
     MODE,
     PATH_TO_META_FOLDER,
     PATH_TO_OUTPUT_FOLDER,
     PATH_TO_TMP_FOLDER,
+    SWITCH_CAM_NAMES,
 )
 from camera_mapper.device import Device
 from camera_mapper.image_labeling import (
@@ -25,9 +25,11 @@ from camera_mapper.screen_processing.image_processing import (
     load_image,
     merge_bounds,
     draw_clickable_elements,
+    separate_xml_from_image_clickables,
 )
 from camera_mapper.screen_processing.xml_processing import (
     clickable_elements,
+    find_element,
 )
 from camera_mapper.utils import create_or_replace_dir
 
@@ -53,6 +55,19 @@ class CameraMapperModel:
         self.__clickables: Dict[str, np.ndarray] = {}
         self.__action_check_done = False
         self.__action_elements: Dict[str, np.ndarray] = {}
+        self.__xml_clickables: Dict[str, np.ndarray] = {}
+        self.xml_elements: Dict[str, np.ndarray] = {}
+        self.__image_clickables: Dict[str, np.ndarray] = {}
+        self.mapping_elements = {
+            # Basics
+            "CAM": None,
+            "TAKE_PICTURE": None,
+            "TOUCH": None,
+            # Depending on the device
+            "MODE": None,
+            "ASPECT_RATIO": None,
+            "FLASH": None,
+        }
 
     def current_state(self) -> str:
         """
@@ -145,17 +160,17 @@ class CameraMapperModel:
 
     def process_screen_gui_xml(
         self, xml: ElementTree, image: np.ndarray
-    ) -> Dict[str, np.ndarray]:
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Processes the GUI XML of the captured screen to extract clickable elements and labeled icons.
         Args:
             xml (ElementTree): The XML ElementTree representing the GUI of the captured screen.
             image (np.ndarray): The captured screen image.
         Returns:
-            Dict[str, np.ndarray]: A dictionary where keys are resource IDs of clickable elements
-                                   and values are their bounds.
+            Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+                A dictionary where keys are XML elements and values are their bounds.
         """
-        clickables = clickable_elements(xml)
+        clickables, elements = clickable_elements(xml)
         if not clickables:
             self.__error = ValueError(
                 "No clickable elements found in the screen GUI XML."
@@ -167,7 +182,7 @@ class CameraMapperModel:
             )
         except Exception as e:
             self.__error = e
-        return clickables
+        return clickables, elements
 
     def process_screen_image(self, image: np.ndarray) -> Dict[str, np.ndarray]:
         """
@@ -182,6 +197,7 @@ class CameraMapperModel:
         if contours is None:
             self.__error = ValueError("No contours found in the screen image.")
             return
+        contours = separate_xml_from_image_clickables(contours, self.__xml_clickables)
         try:
             cv2.imwrite(
                 PATH_TO_TMP_FOLDER.joinpath("image_clickable_elements.png"),
@@ -208,10 +224,12 @@ class CameraMapperModel:
             self.__error = e
             return
 
-        xml_clickables = self.process_screen_gui_xml(xml_tree, image)
-        image_clickables = self.process_screen_image(image)
+        self.__xml_clickables, self.xml_elements = self.process_screen_gui_xml(
+            xml_tree, image
+        )
+        self.__image_clickables = self.process_screen_image(image)
 
-        clickables = merge_bounds(image_clickables, xml_clickables)
+        clickables = merge_bounds(self.__image_clickables, self.__xml_clickables)
         try:
             cv2.imwrite(
                 PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png"),
@@ -220,15 +238,25 @@ class CameraMapperModel:
         except Exception as e:
             self.__error = e
         self.__clickables = clickables
-        print("Clickable elements found in the screen image:")
-        for centroid, bounds in self.__clickables.items():
-            print(f"Centroid: {centroid}, Bounds: {bounds}")
         if self.__clickables is None:
             self.__error = ValueError(
                 "No clickable elements found in the screen image."
             )
 
     # endregion: Screen capture loop
+
+    # region: Basic actions mapping
+    def mark_basic_actions(self) -> None:
+        """
+        Marks the basic actions from XML captured.
+        """
+        for name in SWITCH_CAM_NAMES:
+            found_name, found_box = find_element(name, self.xml_elements)
+            if found_name:
+                self.mapping_elements["CAM"] = found_box
+                break
+
+    # endregion: Basic actions mapping
 
     # region: Action clickable elements check loop
     def mark_actions(self) -> None:

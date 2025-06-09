@@ -28,23 +28,10 @@ class CameraMapperFSM(GraphMachine):
             on_enter=["current_state", "capture_screen"],
             on_exit=["process_screen"],
         )
-        # Action clickable elements check loop
-        actions_check = State(
-            name="actions_check",
-            on_enter=["current_state", "mark_actions"],
-        )
-        action_confirmation = State(
-            name="action_confirmation",
-            on_enter=["current_state", "confirm_actions"],
-        )
-        # Menu clickable elements check loop
-        menu_check = State(
-            name="menu_check",
-            on_enter=["current_state"],
-        )
-        menus_check = State(
-            name="menus_check",
-            on_enter=["current_state", "check_menu"],
+        # Map basic actions
+        basic_marking = State(
+            name="basic_marking",
+            on_enter=["current_state", "mark_basic_actions"],
         )
         finished = State(
             name="finished",
@@ -57,10 +44,7 @@ class CameraMapperFSM(GraphMachine):
             general_error,
             camera_open,
             screen_capture,
-            actions_check,
-            action_confirmation,
-            menu_check,
-            menus_check,
+            basic_marking,
             finished,
         ]
 
@@ -108,57 +92,10 @@ class CameraMapperFSM(GraphMachine):
                 "conditions": ["in_error"],
             },
             {
-                "trigger": "screen_capture_to_actions_check",
+                "trigger": "screen_capture_to_basic_marking",
                 "source": "screen_capture",
-                "dest": "actions_check",
+                "dest": "basic_marking",
             },
-            {
-                "trigger": "actions_check_to_confirm_actions",
-                "source": "actions_check",
-                "dest": "action_confirmation",
-            },
-            {
-                "trigger": "confirm_actions_to_actions_check",
-                "source": "action_confirmation",
-                "dest": "actions_check",
-                "unless": ["actions_check_done"],
-            },
-            {
-                "trigger": "actions_check_to_general_error",
-                "source": "actions_check",
-                "dest": "general_error",
-                "conditions": ["in_error"],
-            },
-            {
-                "trigger": "confirm_actions_to_finished",
-                "source": "action_confirmation",
-                "dest": "finished",
-                "conditions": ["actions_check_done"],
-            },
-            # {
-            #     "trigger": "actions_check_to_menus_check",
-            #     "source": "actions_check",
-            #     "dest": "menus_check",
-            #     "unless": ["actions_check_done"],
-            # },
-            # {
-            #     "trigger": "menus_check_to_menu_check",
-            #     "source": "menus_check",
-            #     "dest": "menu_check",
-            #     "conditions": ["has_menu"],
-            # },
-            # {
-            #     "trigger": "menu_check_to_menus_check",
-            #     "source": "menu_check",
-            #     "dest": "menus_check",
-            #     "after": ["check_menu"],
-            # },
-            # {
-            #     "trigger": "menus_check_to_finished",
-            #     "source": "menus_check",
-            #     "dest": "finished",
-            #     "unless": ["has_menu"],
-            # },
         ]
 
         super().__init__(
