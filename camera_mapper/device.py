@@ -3,17 +3,20 @@ from pathlib import Path
 from threading import Thread
 import time
 
-import cv2
 from device_manager import DeviceActions, DeviceInfo
+from device_manager.device_info import DeviceProperties
 from device_manager.manager_singleton import (
     DeviceManagerSingleton as DeviceManager,
 )
 
-from camera_mapper.constants import SIZE_IN_SCREEN
-from camera_mapper.screen_processing.image_processing import (
-    load_image,
-    proportional_resize,
-)
+
+class MapperProperties(DeviceProperties):
+    hardware_version: str = None
+    software_version: str = None
+    brand: str = None
+    model: str = None
+    width: int = None
+    camera_version: str = None
 
 
 class Device:
@@ -30,10 +33,11 @@ class Device:
         Initializes the DeviceController class with default paths for storing video and screenshot files on the device.
         """
         self.manager = DeviceManager()
+        self.properties: MapperProperties = None
         self.info: DeviceInfo = None
         self.actions: DeviceActions = None
 
-    def connect_device(self, ip) -> None:
+    def connect_device(self, ip: str, hardware_version: str = "1.0.0") -> None:
         """
         Connects to an Android device via ADB using the given IP and port.
 
@@ -53,6 +57,7 @@ class Device:
                 )
             self.info = self.manager.get_device_info(matched_device)
             self.actions = self.manager.get_device_actions(matched_device)
+            self.properties = self.get_properties(hardware_version)
         except IndexError:
             raise ValueError(
                 f"Device with IP: {ip} not found. Please check the IP and port."
@@ -135,3 +140,24 @@ class Device:
         xml_file_path = path.joinpath(f"device_screen_gui_{tag}.xml")
         with open(xml_file_path, "w", encoding="utf-8") as file:
             file.write(xml_info)
+
+    def get_properties(self, hardware_version: str) -> MapperProperties:
+        """
+        Retrieves the device properties such as hardware version, width, and camera version.
+
+        Returns:
+            MapperProperties: An instance containing the device properties.
+        """
+        manager_properties = self.info.get_properties()
+        width = self.info.get_screen_dimensions()[0]
+        package_name = self.actions.camera.package()
+        camera_package = self.info.app(package=package_name)
+        camera_version = camera_package.get_property("versionName")
+        return MapperProperties(
+            hardware_version=hardware_version,
+            software_version=manager_properties.get("android_version"),
+            brand=manager_properties.get("brand"),
+            model=manager_properties.get("model"),
+            width=width,
+            camera_version=camera_version,
+        )
