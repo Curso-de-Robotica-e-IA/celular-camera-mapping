@@ -33,22 +33,20 @@ from camera_mapper.utils import create_or_replace_dir
 
 
 class CameraMapperModel:
-    def __init__(self, device_target, ip, current_step) -> None:
+    def __init__(self, ip, current_step) -> None:
         """
         Initializes the CameraMapper class with the target device, IP address, and current step of the process.
 
         Args:
-            device_target (str): The name of the device to be mapped.
             ip (str): The IP address of the device.
             current_step (int): The starting step of the mapping process.
         """
 
-        self.__device_target = device_target
         self.__ip = ip
-        self.__device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
-        self.__device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
-        self.__current_step = current_step
         self.__device = Device()
+        self.__device_objects_dir: Path = None
+        self.__device_output_dir: Path = None
+        self.__current_step = current_step
         self.__n_menus = 0
         self.__camera_app_open_attempts = 0
         self.__error: Exception = None
@@ -89,6 +87,11 @@ class CameraMapperModel:
         Connects to the device using the provided IP address.
         """
         self.__device.connect_device(self.__ip)
+        device_target = (
+            self.__device.properties.get("model").lower().replace(" ", "_").title()
+        )
+        self.__device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
+        self.__device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
 
     def connected(self):
         """
@@ -281,4 +284,4 @@ class CameraMapperModel:
     # endregion: Menu clickable elements check loop
 
     def success_message(self):
-        print(f"Device {self.__device_target} mapping completed successfully.")
+        print("Device mapping completed successfully.")

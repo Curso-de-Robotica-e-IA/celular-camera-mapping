@@ -72,8 +72,9 @@ class Device:
         Args:
             record_time_s (float): The duration of the video recording in seconds.
         """
-        manager.execute_adb_shell_command(
-            command=f"screenrecord {self.DEVICE_VIDEO_PATH} --time-limit={record_time_s}"
+        manager.execute_adb_command(
+            command=f"screenrecord {self.DEVICE_VIDEO_PATH} --time-limit={record_time_s}",
+            shell=True,
         )
 
     def start_record_in_device(self, record_time_s: float) -> None:
@@ -109,7 +110,9 @@ class Device:
         """
         Deletes the recorded video file from the device.
         """
-        self.manager.execute_adb_shell_command(command=f"rm {self.DEVICE_VIDEO_PATH}")
+        self.manager.execute_adb_command(
+            command=f"rm {self.DEVICE_VIDEO_PATH}", shell=True
+        )
 
     def screen_shot(self, path: Path, tag: str) -> None:
         """
@@ -119,8 +122,8 @@ class Device:
             path (Path): The directory where the screenshot will be saved.
             tag (str): A tag to append to the screenshot file name.
         """
-        self.manager.execute_adb_shell_command(
-            command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}"
+        self.manager.execute_adb_command(
+            command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}", shell=True
         )
         time.sleep(1)
         self.actions.pull_file(
