@@ -152,6 +152,7 @@ class CameraMapperModel:
         if self.device.actions is None:
             self.__error = ValueError("Device actions are not available.")
             return
+        time.sleep(2)
         self.device.actions.camera.open()
         time.sleep(2)  # Wait for the camera app to open
 
@@ -339,8 +340,8 @@ class CameraMapperModel:
         time.sleep(1)
         NAMES_DICT = {
             "1:1": ["1:1", "1_1", "SQUARE"],
-            "3:4": ["3:4", "3_4"],
-            "9:16": ["9:16", "9_16"],
+            "3:4": ["3:4", "3_4", "NORMAL"],
+            "9:16": ["9:16", "9_16", "WIDE"],
             "FULL": ["FULL"],
         }
         elements = self.process_aspect_ratio_menu()
