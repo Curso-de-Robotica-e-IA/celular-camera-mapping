@@ -401,13 +401,13 @@ class CameraMapperModel:
         time.sleep(1)
         self.device.actions.click_by_coordinates(*flash_menu)
         time.sleep(0.5)
-        NAMES = ["AUTO", "ON", "OFF"]
+        NAMES = ["_AUTO", "_ON", "_OFF"]
         elements = self.process_flash_menu()
         for name in NAMES:
             found_name, found_box = find_element(name, elements)
             if found_name and found_box is not None:
                 centroid = found_box.mean(axis=0).astype(np.int32)
-                self.mapping_elements[f"FLASH_{name.replace(':', '_')}"] = centroid
+                self.mapping_elements[f"FLASH_{name.replace('_', '')}"] = centroid
         self.device.actions.click_by_coordinates(*self.mapping_elements["TOUCH"])  # type: ignore
 
     # endregion: Flash actions mapping
