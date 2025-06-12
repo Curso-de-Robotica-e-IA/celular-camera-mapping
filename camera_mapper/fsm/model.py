@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
 
 import cv2
@@ -224,23 +224,33 @@ class CameraMapperModel:
     # endregion: Screen capture loop
 
     # region: Basic actions mapping
+    def map_xml_element(self, element_names: List[str], mapping_name: str) -> None:
+        """
+        Retrieves the centroid of the first found element from the provided names,
+        maps it to the specified mapping name, and removes it from the XML elements.
+        Args:
+            element_names (List[str]): A list of element names to search for.
+            mapping_name (str): The name of the mapping to be used.
+        """
+        for name in element_names:
+            found_name, found_box = find_element(name, self.xml_elements)
+            if found_name:
+                centroid = found_box.mean(axis=0).astype(np.int32)
+                self.mapping_elements[mapping_name] = centroid
+                self.xml_elements.pop(found_name)
+                return
+
     def mark_xml_basic_actions(self) -> None:
         """
         Marks the basic actions from XML captured.
         """
-        device_centroid = self.device.properties.get()
-        for name in SWITCH_CAM_NAMES:
-            found_name, found_box = find_element(name, self.xml_elements)
-            if found_name:
-                self.mapping_elements["CAM"] = found_box
-                self.xml_elements.pop(found_name)
-                break
-        for name in CAPTURE_NAMES:
-            found_name, found_box = find_element(name, self.xml_elements)
-            if found_name:
-                self.mapping_elements["TAKE_PICTURE"] = found_box
-                self.xml_elements.pop(found_name)
-                break
+        if self.device.properties is None:
+            self.__error = ValueError("Device properties are not available.")
+            return
+        device_centroid = self.device.properties.get("centroid", None)
+        self.mapping_elements["TOUCH"] = np.array(device_centroid, dtype=np.int32)
+        self.map_xml_element(SWITCH_CAM_NAMES, "CAM")
+        self.map_xml_element(CAPTURE_NAMES, "TAKE_PICTURE")
 
     # endregion: Basic actions mapping
 
