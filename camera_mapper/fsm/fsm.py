@@ -37,6 +37,7 @@ class CameraMapperFSM(GraphMachine):
             name="basic_xml_mapping",
             on_enter=["current_state", "map_xml_basic_actions"],
         )
+        # Map aspect ratio
         xml_aspect_ratio = State(
             name="xml_aspect_ratio",
             on_enter=["current_state", "map_xml_aspect_ratio"],
@@ -45,6 +46,7 @@ class CameraMapperFSM(GraphMachine):
             name="aspect_ratio_actions",
             on_enter=["current_state", "map_aspect_ratio_actions"],
         )
+        # Map flash actions
         xml_flash = State(
             name="xml_flash",
             on_enter=["current_state", "map_xml_flash"],
@@ -52,6 +54,11 @@ class CameraMapperFSM(GraphMachine):
         flash_actions = State(
             name="flash_actions",
             on_enter=["current_state", "map_flash_actions"],
+        )
+        # Start Mapping portrait
+        portrait_finding = State(
+            name="portrait_finding",
+            on_enter=["current_state", "find_portrait"],
         )
         finished = State(
             name="finished",
@@ -70,6 +77,7 @@ class CameraMapperFSM(GraphMachine):
             aspect_ratio_actions,
             xml_flash,
             flash_actions,
+            portrait_finding,
             finished,
         ]
 
@@ -142,8 +150,13 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "flash_actions",
             },
             {
-                "trigger": "flash_actions_to_finished",
+                "trigger": "flash_actions_to_portrait_finding",
                 "source": "flash_actions",
+                "dest": "portrait_finding",
+            },
+            {
+                "trigger": "portrait_finding_to_finished",
+                "source": "portrait_finding",
                 "dest": "finished",
             },
         ]

@@ -63,7 +63,7 @@ class CameraMapperModel:
             "TOUCH": None,
             "QUICK_CONTROLS": None,
             # Depending on the device
-            "MODE": None,
+            "PORTRAIT_MODE": None,
             "ASPECT_RATIO_MENU": None,
             "ASPECT_RATIO_3_4": None,
             "ASPECT_RATIO_9_16": None,
@@ -422,6 +422,23 @@ class CameraMapperModel:
 
     # endregion: Flash actions mapping
 
+    # region: Portrait finding
+    def find_portrait(self) -> None:
+        """
+        Finds the portrait mode button on the device screen.
+        """
+        portrait_name, portrait_bounds = find_element(
+            "PORTRAIT",
+            self.xml_elements,
+        )
+        if portrait_name and portrait_bounds is not None:
+            portrait_centroid = portrait_bounds.mean(axis=0).astype(np.int32)
+            self.mapping_elements["PORTRAIT_MODE"] = portrait_centroid
+        else:
+            print("AI")
+            pass
+
+    # endregion: Portrait finding
     def success_message(self):
         print(self.mapping_elements)
         print("Device mapping completed successfully.")
