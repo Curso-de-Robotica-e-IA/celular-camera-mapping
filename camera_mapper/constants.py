@@ -21,6 +21,11 @@ ASPECT_RATIO_MENU_NAMES = [
     "full",
 ]
 FLASH_MENU_NAMES = ["flash", "on", "off", "auto"]
+QUICK_CONTROL_NAMES = [
+    "quick_control",
+    "control",
+    "quick",
+]
 
 MAPPING_REQUIREMENTS = {
     "STATE_REQUIRES": {

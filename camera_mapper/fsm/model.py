@@ -15,6 +15,7 @@ from camera_mapper.constants import (
     PATH_TO_META_FOLDER,
     PATH_TO_OUTPUT_FOLDER,
     PATH_TO_TMP_FOLDER,
+    QUICK_CONTROL_NAMES,
     SWITCH_CAM_NAMES,
 )
 from camera_mapper.device import Device
@@ -60,6 +61,7 @@ class CameraMapperModel:
             "CAM": None,
             "TAKE_PICTURE": None,
             "TOUCH": None,
+            "QUICK_CONTROLS": None,
             # Depending on the device
             "MODE": None,
             "ASPECT_RATIO_MENU": None,
@@ -287,28 +289,23 @@ class CameraMapperModel:
         take_name, take_centroid = self.get_xml_element_and_centroid(
             CAPTURE_NAMES, self.xml_elements
         )
+        quick_control_name, quick_control_centroid = self.get_xml_element_and_centroid(
+            QUICK_CONTROL_NAMES, self.xml_elements
+        )
         if cam_name:
             self.mapping_elements["CAM"] = cam_centroid
             self.xml_elements.pop(cam_name)
         if take_name:
             self.mapping_elements["TAKE_PICTURE"] = take_centroid
             self.xml_elements.pop(take_name)
+        if quick_control_name:
+            self.mapping_elements["QUICK_CONTROLS"] = quick_control_centroid
+            self.xml_elements.pop(quick_control_name)
 
     # endregion: Basic actions mapping
 
     # region: Aspect Ratio actions mapping
-    def map_xml_aspect_ratio(self) -> None:
-        """
-        Maps the aspect ratio from XML captured.
-        """
-        found_name, found_centroid = self.get_xml_element_and_centroid(
-            ASPECT_RATIO_MENU_NAMES, self.xml_elements
-        )
-        if found_name and found_centroid is not None:
-            self.mapping_elements["ASPECT_RATIO_MENU"] = found_centroid
-            self.xml_elements.pop(found_name)
-
-    def process_aspect_ratio_menu(self) -> Dict[str, np.ndarray]:
+    def process_xml(self) -> Dict[str, np.ndarray]:
         """
         Processes the aspect ratio menu from the XML elements.
         Returns:
@@ -325,6 +322,34 @@ class CameraMapperModel:
             )
             return {"": np.array([])}
         return elements
+
+    def map_xml_aspect_ratio(self) -> None:
+        """
+        Maps the aspect ratio from XML captured.
+        """
+        found_name, found_centroid = self.get_xml_element_and_centroid(
+            ASPECT_RATIO_MENU_NAMES, self.xml_elements
+        )
+
+        if found_name and found_centroid is not None:
+            self.mapping_elements["ASPECT_RATIO_MENU"] = found_centroid
+            self.xml_elements.pop(found_name)
+        elif self.mapping_elements["QUICK_CONTROLS"] is not None:
+            self.device.actions.click_by_coordinates(
+                *self.mapping_elements["QUICK_CONTROLS"]
+            )
+            time.sleep(1)
+            elements = self.process_xml()
+            found_name, found_centroid = self.get_xml_element_and_centroid(
+                ASPECT_RATIO_MENU_NAMES, elements
+            )
+            if found_name and found_centroid is not None:
+                self.mapping_elements["ASPECT_RATIO_MENU"] = found_centroid
+
+        if found_name is None or found_centroid is None:
+            self.__error = ValueError(
+                "Aspect ratio menu not found in the XML elements."
+            )
 
     def map_aspect_ratio_actions(self) -> None:
         """
@@ -344,7 +369,7 @@ class CameraMapperModel:
             "9:16": ["9:16", "9_16", "WIDE"],
             "FULL": ["FULL"],
         }
-        elements = self.process_aspect_ratio_menu()
+        elements = self.process_xml()
         for name_kind, names in NAMES_DICT.items():
             for name in names:
                 found_name, found_box = find_element(name, elements)
@@ -370,23 +395,8 @@ class CameraMapperModel:
             self.mapping_elements["FLASH_MENU"] = found_centroid
             self.xml_elements.pop(found_name)
 
-    def process_flash_menu(self) -> Dict[str, np.ndarray]:
-        """
-        Processes the aspect ratio menu from the XML elements.
-        Returns:
-            Dict[str, ndarray]: A dictionary with centroids of aspect ratio elements.
-        """
-        self.device.save_screen_gui_xml(path=PATH_TO_TMP_FOLDER)
-        xml_tree = ElementTree(
-            file=PATH_TO_TMP_FOLDER.joinpath("device_screen_gui.xml")
-        )
-        _, elements = clickable_elements(xml_tree)
-        if not elements:
-            self.__error = ValueError(
-                "No clickable elements found in the screen GUI XML."
-            )
-            return {"": np.array([])}
-        return elements
+        if found_name is None or found_centroid is None:
+            self.__error = ValueError("Flash menu not found in the XML elements.")
 
     def map_flash_actions(self) -> None:
         """
@@ -402,7 +412,7 @@ class CameraMapperModel:
         self.device.actions.click_by_coordinates(*flash_menu)
         time.sleep(0.5)
         NAMES = ["_AUTO", "_ON", "_OFF"]
-        elements = self.process_flash_menu()
+        elements = self.process_xml()
         for name in NAMES:
             found_name, found_box = find_element(name, elements)
             if found_name and found_box is not None:
