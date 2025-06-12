@@ -1,5 +1,5 @@
-from xml.etree.ElementTree import ElementTree
 from typing import Dict, Tuple
+from xml.etree.ElementTree import ElementTree
 
 import numpy as np
 

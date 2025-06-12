@@ -1,5 +1,8 @@
 from pathlib import Path
+from typing import Dict, List, Tuple
+
 import cv2
+import numpy as np
 
 from camera_mapper.constants import SIZE_IN_SCREEN
 from camera_mapper.screen_processing.image_processing import (
@@ -7,9 +10,6 @@ from camera_mapper.screen_processing.image_processing import (
     load_image,
     proportional_resize,
 )
-
-from typing import Dict, List, Tuple
-import numpy as np
 
 
 def click_on_image(image_path: str) -> List[np.ndarray]:

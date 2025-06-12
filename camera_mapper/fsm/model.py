@@ -1,5 +1,5 @@
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
 
@@ -8,6 +8,7 @@ import numpy as np
 
 from camera_mapper.constants import (
     CAMERA,
+    CAPTURE_NAMES,
     MODE,
     PATH_TO_META_FOLDER,
     PATH_TO_OUTPUT_FOLDER,
@@ -21,10 +22,10 @@ from camera_mapper.image_labeling import (
     match_elements_to_clicks,
 )
 from camera_mapper.screen_processing.image_processing import (
+    draw_clickable_elements,
     find_contours_in_image,
     load_image,
     merge_bounds,
-    draw_clickable_elements,
     separate_xml_from_image_clickables,
 )
 from camera_mapper.screen_processing.xml_processing import (
@@ -35,29 +36,23 @@ from camera_mapper.utils import create_or_replace_dir
 
 
 class CameraMapperModel:
-    def __init__(self, ip, current_step) -> None:
+    def __init__(self, ip) -> None:
         """
-        Initializes the CameraMapper class with the target device, IP address, and current step of the process.
+        Initializes the CameraMapper class with the IP address of the device
 
         Args:
             ip (str): The IP address of the device.
-            current_step (int): The starting step of the mapping process.
         """
 
         self.__ip = ip
-        self.__device = Device()
-        self.__device_objects_dir: Optional[Path] = None
-        self.__device_output_dir: Optional[Path] = None
-        self.__current_step = current_step
-        self.__n_menus = 0
+        self.device = Device()
+        self.device_objects_dir: Optional[Path] = None
+        self.device_output_dir: Optional[Path] = None
         self.__camera_app_open_attempts = 0
         self.__error: Optional[Exception] = None
-        self.__clickables: Dict[str, np.ndarray] = {}
-        self.__action_check_done = False
-        self.__action_elements: Dict[str, np.ndarray] = {}
-        self.__xml_clickables: Dict[str, np.ndarray] = {}
+        self.xml_clickables: Dict[str, np.ndarray] = {}
         self.xml_elements: Dict[str, np.ndarray] = {}
-        self.__image_clickables: Dict[str, np.ndarray] = {}
+        self.image_clickables: Dict[str, np.ndarray] = {}
         self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
             # Basics
             "CAM": None,
@@ -102,12 +97,12 @@ class CameraMapperModel:
         """
         Connects to the device using the provided IP address.
         """
-        self.__device.connect_device(self.__ip)
+        self.device.connect_device(self.__ip)
         device_target = (
-            self.__device.properties.get("model").lower().replace(" ", "_").title()
+            self.device.properties.get("model").lower().replace(" ", "_").title()
         )
-        self.__device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
-        self.__device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
+        self.device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
+        self.device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
 
     def connected(self):
         """
@@ -115,7 +110,7 @@ class CameraMapperModel:
         Returns:
             bool: True if the device is connected, False otherwise.
         """
-        is_connected = len(self.__device.manager) > 0
+        is_connected = len(self.device.manager) > 0
         if not is_connected:
             self.__error = ConnectionError(
                 "Device not connected. Please check the IP address."
@@ -129,7 +124,7 @@ class CameraMapperModel:
         """
         Opens the camera application on the device.
         """
-        self.__device.actions.camera.open()
+        self.device.actions.camera.open()
         time.sleep(2)  # Wait for the camera app to open
 
     def check_camera_app(self) -> bool:
@@ -137,7 +132,7 @@ class CameraMapperModel:
         Checks if the camera application is open on the device.
         If not, it attempts to open it again.
         """
-        current_activity = self.__device.info.actual_activity().lower()
+        current_activity = self.device.info.actual_activity().lower()
         camera_opened = "cam" in current_activity
         self.__camera_app_open_attempts += 1
         if not camera_opened and self.__camera_app_open_attempts > 3:
@@ -154,10 +149,8 @@ class CameraMapperModel:
         Captures the current screen of the device and saves it to a temporary folder.
         """
         create_or_replace_dir(PATH_TO_TMP_FOLDER)
-        self.__device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=f"{CAMERA}_{MODE}")
-        self.__device.save_screen_gui_xml(
-            path=PATH_TO_TMP_FOLDER, tag=self.__current_step
-        )
+        self.device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=f"{CAMERA}_{MODE}")
+        self.device.save_screen_gui_xml(path=PATH_TO_TMP_FOLDER)
 
     def process_screen_gui_xml(
         self, xml: ElementTree, image: np.ndarray
@@ -198,7 +191,7 @@ class CameraMapperModel:
         if contours is None:
             self.__error = ValueError("No contours found in the screen image.")
             return {}
-        contours = separate_xml_from_image_clickables(contours, self.__xml_clickables)
+        contours = separate_xml_from_image_clickables(contours, self.xml_clickables)
         try:
             cv2.imwrite(
                 str(PATH_TO_TMP_FOLDER.joinpath("image_clickable_elements.png")),
@@ -217,101 +210,50 @@ class CameraMapperModel:
                 PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
             )
             xml_tree = ElementTree(
-                file=PATH_TO_TMP_FOLDER.joinpath(
-                    f"device_screen_gui_{self.__current_step}.xml"
-                )
+                file=PATH_TO_TMP_FOLDER.joinpath("device_screen_gui.xml")
             )
         except Exception as e:
             self.__error = e
             return
 
-        self.__xml_clickables, self.xml_elements = self.process_screen_gui_xml(
+        self.xml_clickables, self.xml_elements = self.process_screen_gui_xml(
             xml_tree, image
         )
-        self.__image_clickables = self.process_screen_image(image)
-
-        clickables = merge_bounds(self.__image_clickables, self.__xml_clickables)
-        try:
-            cv2.imwrite(
-                str(PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png")),
-                draw_clickable_elements(image, clickables),
-            )
-        except Exception as e:
-            self.__error = e
-        self.__clickables = clickables
-        if self.__clickables is None:
-            self.__error = ValueError(
-                "No clickable elements found in the screen image."
-            )
+        self.image_clickables = self.process_screen_image(image)
 
     # endregion: Screen capture loop
 
     # region: Basic actions mapping
-    def mark_basic_actions(self) -> None:
+    def mark_xml_basic_actions(self) -> None:
         """
         Marks the basic actions from XML captured.
         """
+        device_centroid = self.device.properties.get()
         for name in SWITCH_CAM_NAMES:
             found_name, found_box = find_element(name, self.xml_elements)
             if found_name:
                 self.mapping_elements["CAM"] = found_box
+                self.xml_elements.pop(found_name)
                 break
-        print(self.mapping_elements["CAM"])
+        for name in CAPTURE_NAMES:
+            found_name, found_box = find_element(name, self.xml_elements)
+            if found_name:
+                self.mapping_elements["TAKE_PICTURE"] = found_box
+                self.xml_elements.pop(found_name)
+                break
 
     # endregion: Basic actions mapping
 
-    # region: Action clickable elements check loop
-    def mark_actions(self) -> None:
+    # region: Complex actions mapping
+    def mark_xml_complex_actions(self) -> None:
         """
-        Marks the clickable elements in the captured screen image and allows the user to mark action elements.
+        Marks the complex actions from XML captured.
         """
-        self.__action_elements = {}
-        print(
-            "Please mark the action elements in the image by clicking on them with the mouse's left button."
-        )
-        print("Press 'Esc' to finish marking.")
-        marked_points = click_on_image(
-            str(PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png"))
-        )
-        if len(marked_points) == 0:
-            self.__error = ValueError("No action elements were marked.")
-            return
-        self.__action_elements = match_elements_to_clicks(
-            clicks=marked_points, clickables=self.__clickables
-        )
+        import ipdb
 
-    def confirm_actions(self) -> None:
-        """
-        Confirms the actions that have been clicked by the user by showing them on the screen and the user chooses to accept or not.
-        """
-        if not self.__action_elements:
-            self.__error = ValueError("No action elements to confirm.")
-            return
-        self.__action_check_done = confirm_labeling(
-            PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"),
-            self.__action_elements,
-            label_name="Actions",
-        )
+        ipdb.set_trace()
 
-    def actions_check_done(self) -> bool:
-        """
-        Checks if there are any actions on screen to be marked.
-        Returns:
-            bool: True if there are actions, False otherwise.
-        """
-        return self.__action_check_done
-
-    # endregion: Action clickable elements check loop
-
-    # region: Menu clickable elements check loop
-    def has_menu(self) -> bool:
-        """Checks if the current screen has a menu button displayed yet to be checked."""
-        return self.__n_menus > 0
-
-    def check_menu(self):
-        raise NotImplementedError("Implement This Model Behavior.")
-
-    # endregion: Menu clickable elements check loop
+    # endregion: Complex actions mapping
 
     def success_message(self):
         print("Device mapping completed successfully.")

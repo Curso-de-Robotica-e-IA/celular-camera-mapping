@@ -29,9 +29,14 @@ class CameraMapperFSM(GraphMachine):
             on_exit=["process_screen"],
         )
         # Map basic actions
-        basic_marking = State(
-            name="basic_marking",
-            on_enter=["current_state", "mark_basic_actions"],
+        basic_xml_marking = State(
+            name="basic_xml_marking",
+            on_enter=["current_state", "mark_xml_basic_actions"],
+        )
+        # Map complex actions
+        complex_xml_marking = State(
+            name="complex_xml_marking",
+            on_enter=["current_state", "mark_xml_complex_actions"],
         )
         finished = State(
             name="finished",
@@ -44,7 +49,8 @@ class CameraMapperFSM(GraphMachine):
             general_error,
             camera_open,
             screen_capture,
-            basic_marking,
+            basic_xml_marking,
+            complex_xml_marking,
             finished,
         ]
 
@@ -92,13 +98,18 @@ class CameraMapperFSM(GraphMachine):
                 "conditions": ["in_error"],
             },
             {
-                "trigger": "screen_capture_to_basic_marking",
+                "trigger": "screen_capture_to_basic_xml_marking",
                 "source": "screen_capture",
-                "dest": "basic_marking",
+                "dest": "basic_xml_marking",
             },
             {
-                "trigger": "basic_marking_to_finished",
-                "source": "basic_marking",
+                "trigger": "basic_xml_marking_to_complex_xml_marking",
+                "source": "basic_xml_marking",
+                "dest": "complex_xml_marking",
+            },
+            {
+                "trigger": "complex_xml_marking_to_finished",
+                "source": "complex_xml_marking",
                 "dest": "finished",
             },
         ]

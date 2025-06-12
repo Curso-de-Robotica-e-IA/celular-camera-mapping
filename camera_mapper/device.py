@@ -1,22 +1,21 @@
 import shutil
+import time
 from pathlib import Path
 from threading import Thread
-import time
+from typing import Optional, TypedDict
 
 from device_manager import DeviceActions, DeviceInfo
 from device_manager.device_info import DeviceProperties
-from device_manager.manager_singleton import (
-    DeviceManagerSingleton as DeviceManager,
-)
+from device_manager.manager_singleton import DeviceManagerSingleton as DeviceManager
 
 
-class MapperProperties(DeviceProperties):
-    hardware_version: str = None
-    software_version: str = None
-    brand: str = None
-    model: str = None
-    width: int = None
-    camera_version: str = None
+class MapperProperties(DeviceProperties, TypedDict, total=False):
+    hardware_version: Optional[str]
+    software_version: Optional[str]
+    brand: Optional[str]
+    model: Optional[str]
+    width: Optional[int]
+    camera_version: Optional[str]
 
 
 class Device:
@@ -33,9 +32,9 @@ class Device:
         Initializes the DeviceController class with default paths for storing video and screenshot files on the device.
         """
         self.manager = DeviceManager()
-        self.properties: MapperProperties = None
-        self.info: DeviceInfo = None
-        self.actions: DeviceActions = None
+        self.properties: Optional[MapperProperties] = None
+        self.info: Optional[DeviceInfo] = None
+        self.actions: Optional[DeviceActions] = None
 
     def connect_device(self, ip: str, hardware_version: str = "1.0.0") -> None:
         """
@@ -126,21 +125,29 @@ class Device:
             command=f"screencap -p {self.DEVICE_SCREENCAP_PATH}", shell=True
         )
         time.sleep(1)
+        if self.actions is None:
+            raise RuntimeError(
+                "Device actions are not initialized. Please connect to a device first."
+            )
         self.actions.pull_file(
             remote_path=self.DEVICE_SCREENCAP_PATH,
             local_path=str(path.joinpath(f"original_{tag}.png")),
         )
         time.sleep(1)
 
-    def save_screen_gui_xml(self, path: Path, tag: str) -> None:
+    def save_screen_gui_xml(self, path: Path) -> None:
         """
         Saves the current screen's GUI XML information from the device into
         device_screen_gui.xml file in the specified path with a tag.
         """
+        if self.info is None:
+            raise RuntimeError(
+                "Device info is not initialized. Please connect to a device first."
+            )
         xml_info = self.info.get_screen_gui_xml()
         if xml_info is None:
             raise ValueError("Failed to retrieve screen GUI XML information.")
-        xml_file_path = path.joinpath(f"device_screen_gui_{tag}.xml")
+        xml_file_path = path.joinpath("device_screen_gui.xml")
         with open(xml_file_path, "w", encoding="utf-8") as file:
             file.write(xml_info)
 
@@ -151,6 +158,10 @@ class Device:
         Returns:
             MapperProperties: An instance containing the device properties.
         """
+        if self.info is None or self.actions is None:
+            raise RuntimeError(
+                "Device info is not initialized. Please connect to a device first."
+            )
         manager_properties = self.info.get_properties()
         width = self.info.get_screen_dimensions()[0]
         package_name = self.actions.camera.package()
