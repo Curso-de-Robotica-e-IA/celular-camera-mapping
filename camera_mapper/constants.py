@@ -11,6 +11,16 @@ MODE = "photo"
 
 SWITCH_CAM_NAMES = ["switch", "selfie", "main"]
 CAPTURE_NAMES = ["take_picture", "capture", "photo"]
+ASPECT_RATIO_MENU_NAMES = [
+    "aspect_ratio",
+    "ratio",
+    "aspect",
+    "3:4",
+    "16:9",
+    "1:1",
+    "full",
+]
+FLASH_MENU_NAMES = ["flash", "on", "off", "auto"]
 
 MAPPING_REQUIREMENTS = {
     "STATE_REQUIRES": {
@@ -24,7 +34,7 @@ MAPPING_REQUIREMENTS = {
     "ITENS_TO_MAPPING": [
         "CAM",
         "MODE",
-        "ASPECT_RATIO",
+        "ASPECT_RATIO_MENU",
         "FLASH",
         "TAKE_PICTURE",
         "TOUCH",

@@ -17,6 +17,10 @@ class CameraMapperFSM(GraphMachine):
             name="general_error",
             on_enter=["current_state", "raise_error"],
         )
+        tmp_dir = State(
+            name="tmp_dir",
+            on_enter=["current_state", "create_tmp_dir"],
+        )
         # Camera application open loop
         camera_open = State(
             name="camera_open",
@@ -29,14 +33,25 @@ class CameraMapperFSM(GraphMachine):
             on_exit=["process_screen"],
         )
         # Map basic actions
-        basic_xml_marking = State(
-            name="basic_xml_marking",
-            on_enter=["current_state", "mark_xml_basic_actions"],
+        basic_xml_mapping = State(
+            name="basic_xml_mapping",
+            on_enter=["current_state", "map_xml_basic_actions"],
         )
-        # Map complex actions
-        complex_xml_marking = State(
-            name="complex_xml_marking",
-            on_enter=["current_state", "mark_xml_complex_actions"],
+        xml_aspect_ratio = State(
+            name="xml_aspect_ratio",
+            on_enter=["current_state", "map_xml_aspect_ratio"],
+        )
+        aspect_ratio_actions = State(
+            name="aspect_ratio_actions",
+            on_enter=["current_state", "map_aspect_ratio_actions"],
+        )
+        xml_flash = State(
+            name="xml_flash",
+            on_enter=["current_state", "map_xml_flash"],
+        )
+        flash_actions = State(
+            name="flash_actions",
+            on_enter=["current_state", "map_flash_actions"],
         )
         finished = State(
             name="finished",
@@ -47,10 +62,14 @@ class CameraMapperFSM(GraphMachine):
             idle,
             device_connection,
             general_error,
+            tmp_dir,
             camera_open,
             screen_capture,
-            basic_xml_marking,
-            complex_xml_marking,
+            basic_xml_mapping,
+            xml_aspect_ratio,
+            aspect_ratio_actions,
+            xml_flash,
+            flash_actions,
             finished,
         ]
 
@@ -98,18 +117,33 @@ class CameraMapperFSM(GraphMachine):
                 "conditions": ["in_error"],
             },
             {
-                "trigger": "screen_capture_to_basic_xml_marking",
+                "trigger": "screen_capture_to_basic_xml_mapping",
                 "source": "screen_capture",
-                "dest": "basic_xml_marking",
+                "dest": "basic_xml_mapping",
             },
             {
-                "trigger": "basic_xml_marking_to_complex_xml_marking",
-                "source": "basic_xml_marking",
-                "dest": "complex_xml_marking",
+                "trigger": "basic_xml_mapping_to_xml_aspect_ratio",
+                "source": "basic_xml_mapping",
+                "dest": "xml_aspect_ratio",
             },
             {
-                "trigger": "complex_xml_marking_to_finished",
-                "source": "complex_xml_marking",
+                "trigger": "xml_aspect_ratio_to_aspect_ratio_actions",
+                "source": "xml_aspect_ratio",
+                "dest": "aspect_ratio_actions",
+            },
+            {
+                "trigger": "aspect_ratio_actions_to_xml_flash",
+                "source": "aspect_ratio_actions",
+                "dest": "xml_flash",
+            },
+            {
+                "trigger": "xml_flash_to_flash_actions",
+                "source": "xml_flash",
+                "dest": "flash_actions",
+            },
+            {
+                "trigger": "flash_actions_to_finished",
+                "source": "flash_actions",
                 "dest": "finished",
             },
         ]
