@@ -64,7 +64,7 @@ class CameraMapperModel:
             "MODE": None,
             "ASPECT_RATIO_MENU": None,
             "ASPECT_RATIO_3_4": None,
-            "ASPECT_RATIO_16_9": None,
+            "ASPECT_RATIO_9_16": None,
             "ASPECT_RATIO_1_1": None,
             "ASPECT_RATIO_FULL": None,
             "FLASH_MENU": None,
@@ -336,16 +336,22 @@ class CameraMapperModel:
             )
             return
         self.device.actions.click_by_coordinates(*aspect_ratio_menu)
-        time.sleep(0.5)
-        NAMES = ["1:1", "3:4", "9:16", "FULL"]
+        time.sleep(1)
+        NAMES_DICT = {
+            "1:1": ["1:1", "1_1", "SQUARE"],
+            "3:4": ["3:4", "3_4"],
+            "9:16": ["9:16", "9_16"],
+            "FULL": ["FULL"],
+        }
         elements = self.process_aspect_ratio_menu()
-        for name in NAMES:
-            found_name, found_box = find_element(name, elements)
-            if found_name and found_box is not None:
-                centroid = found_box.mean(axis=0).astype(np.int32)
-                self.mapping_elements[f"ASPECT_RATIO_{name.replace(':', '_')}"] = (
-                    centroid
-                )
+        for name_kind, names in NAMES_DICT.items():
+            for name in names:
+                found_name, found_box = find_element(name, elements)
+                if found_name and found_box is not None:
+                    centroid = found_box.mean(axis=0).astype(np.int32)
+                    self.mapping_elements[
+                        f"ASPECT_RATIO_{name_kind.replace(':', '_')}"
+                    ] = centroid
         self.device.actions.click_by_coordinates(*self.mapping_elements["TOUCH"])  # type: ignore
         time.sleep(0.5)
 
