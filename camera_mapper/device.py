@@ -15,6 +15,8 @@ class MapperProperties(DeviceProperties, TypedDict, total=False):
     brand: Optional[str]
     model: Optional[str]
     width: Optional[int]
+    height: Optional[int]
+    centroid: Optional[tuple[int, int]]
     camera_version: Optional[str]
 
 
@@ -163,7 +165,8 @@ class Device:
                 "Device info is not initialized. Please connect to a device first."
             )
         manager_properties = self.info.get_properties()
-        width = self.info.get_screen_dimensions()[0]
+        width, height = self.info.get_screen_dimensions()
+        centroid = (width // 2, height // 2)
         package_name = self.actions.camera.package()
         camera_package = self.info.app(package=package_name)
         camera_version = camera_package.get_property("versionName")
@@ -173,5 +176,7 @@ class Device:
             brand=manager_properties.get("brand"),
             model=manager_properties.get("model"),
             width=width,
+            height=height,
+            centroid=centroid,
             camera_version=camera_version,
         )
