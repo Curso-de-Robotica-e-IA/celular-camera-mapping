@@ -3,6 +3,20 @@ from typing import Dict, Tuple
 
 import numpy as np
 
+UNUSED_ELEMENTS = [
+    "back",
+    "overview",
+    "home",
+    "night",
+    "timer",
+    "settings",
+    "config",
+    "filter",
+    "google",
+    "lens",
+    "gallery",
+]
+
 
 def clickable_elements(
     xml_tree: ElementTree,
@@ -22,19 +36,26 @@ def clickable_elements(
     elements = {}
     for elem in xml_tree.iter():
         if elem.get("clickable") == "true":
-            bounds = elem.get("bounds")
+            bounds = elem.get("bounds", "")
             if bounds:
                 begin, end = bounds.strip("[]").split("][")
                 begin = list(map(int, begin.split(",")))
                 end = list(map(int, end.split(",")))
-                centroid = ((begin[0] + end[0]) // 2, (begin[1] + end[1]) // 2)
-                centroid = f"{centroid[0]}:{centroid[1]}"
-                clickables[centroid] = np.array([begin, end], dtype=np.int32)
-                text = elem.get("text")
-                description = elem.get("content-desc")
+                text = elem.get("text", "")
+                description = elem.get("content-desc", "")
                 name = text if len(text) > len(description) else description
                 name = name.strip().replace(" ", "_").lower()
                 elements[name] = np.array([begin, end], dtype=np.int32)
+
+    for unused in UNUSED_ELEMENTS:
+        keys_to_pop = [key for key in elements if unused in key]
+        for key in keys_to_pop:
+            elements.pop(key)
+        if "" in elements:
+            elements.pop("")
+    for bounds in elements.values():
+        centroid = np.mean(bounds, axis=0).astype(int)
+        clickables[f"{centroid[0]}:{centroid[1]}"] = bounds
     return clickables, elements
 
 
