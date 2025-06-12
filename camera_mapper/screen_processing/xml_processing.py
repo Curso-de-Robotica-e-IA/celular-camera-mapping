@@ -4,7 +4,6 @@ from xml.etree.ElementTree import ElementTree
 import numpy as np
 
 UNUSED_ELEMENTS = [
-    "back",
     "overview",
     "home",
     "night",
