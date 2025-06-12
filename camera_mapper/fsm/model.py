@@ -1,6 +1,6 @@
 from pathlib import Path
 import time
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
 
 import cv2
@@ -46,19 +46,19 @@ class CameraMapperModel:
 
         self.__ip = ip
         self.__device = Device()
-        self.__device_objects_dir: Path = None
-        self.__device_output_dir: Path = None
+        self.__device_objects_dir: Optional[Path] = None
+        self.__device_output_dir: Optional[Path] = None
         self.__current_step = current_step
         self.__n_menus = 0
         self.__camera_app_open_attempts = 0
-        self.__error: Exception = None
+        self.__error: Optional[Exception] = None
         self.__clickables: Dict[str, np.ndarray] = {}
         self.__action_check_done = False
         self.__action_elements: Dict[str, np.ndarray] = {}
         self.__xml_clickables: Dict[str, np.ndarray] = {}
         self.xml_elements: Dict[str, np.ndarray] = {}
         self.__image_clickables: Dict[str, np.ndarray] = {}
-        self.mapping_elements = {
+        self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
             # Basics
             "CAM": None,
             "TAKE_PICTURE": None,
@@ -69,7 +69,7 @@ class CameraMapperModel:
             "FLASH": None,
         }
 
-    def current_state(self) -> str:
+    def current_state(self) -> None:
         """
         Prints the current state of the model.
         """
@@ -84,7 +84,8 @@ class CameraMapperModel:
             Exception: If an error has been stored, it raises that error.
         """
         print(self.__error)
-        raise self.__error
+        if self.__error is not None:
+            raise self.__error
 
     def in_error(self) -> bool:
         """
@@ -117,7 +118,7 @@ class CameraMapperModel:
         is_connected = len(self.__device.manager) > 0
         if not is_connected:
             self.__error = ConnectionError(
-                f"Device {self.__device_target} not connected. Please check the IP address."
+                "Device not connected. Please check the IP address."
             )
         return is_connected
 
@@ -131,7 +132,7 @@ class CameraMapperModel:
         self.__device.actions.camera.open()
         time.sleep(2)  # Wait for the camera app to open
 
-    def check_camera_app(self) -> None:
+    def check_camera_app(self) -> bool:
         """
         Checks if the camera application is open on the device.
         If not, it attempts to open it again.
@@ -177,7 +178,7 @@ class CameraMapperModel:
             )
         try:
             cv2.imwrite(
-                PATH_TO_TMP_FOLDER.joinpath("xml_clickable_elements.png"),
+                str(PATH_TO_TMP_FOLDER.joinpath("xml_clickable_elements.png")),
                 draw_clickable_elements(image, clickables),
             )
         except Exception as e:
@@ -196,11 +197,11 @@ class CameraMapperModel:
         contours = find_contours_in_image(image)
         if contours is None:
             self.__error = ValueError("No contours found in the screen image.")
-            return
+            return {}
         contours = separate_xml_from_image_clickables(contours, self.__xml_clickables)
         try:
             cv2.imwrite(
-                PATH_TO_TMP_FOLDER.joinpath("image_clickable_elements.png"),
+                str(PATH_TO_TMP_FOLDER.joinpath("image_clickable_elements.png")),
                 draw_clickable_elements(image, contours),
             )
         except Exception as e:
@@ -232,7 +233,7 @@ class CameraMapperModel:
         clickables = merge_bounds(self.__image_clickables, self.__xml_clickables)
         try:
             cv2.imwrite(
-                PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png"),
+                str(PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png")),
                 draw_clickable_elements(image, clickables),
             )
         except Exception as e:
@@ -255,6 +256,7 @@ class CameraMapperModel:
             if found_name:
                 self.mapping_elements["CAM"] = found_box
                 break
+        print(self.mapping_elements["CAM"])
 
     # endregion: Basic actions mapping
 
@@ -269,7 +271,7 @@ class CameraMapperModel:
         )
         print("Press 'Esc' to finish marking.")
         marked_points = click_on_image(
-            PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png")
+            str(PATH_TO_TMP_FOLDER.joinpath("clickable_elements.png"))
         )
         if len(marked_points) == 0:
             self.__error = ValueError("No action elements were marked.")

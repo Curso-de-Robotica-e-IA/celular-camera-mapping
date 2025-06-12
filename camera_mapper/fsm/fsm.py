@@ -96,6 +96,11 @@ class CameraMapperFSM(GraphMachine):
                 "source": "screen_capture",
                 "dest": "basic_marking",
             },
+            {
+                "trigger": "basic_marking_to_finished",
+                "source": "basic_marking",
+                "dest": "finished",
+            },
         ]
 
         super().__init__(

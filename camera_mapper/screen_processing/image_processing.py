@@ -1,6 +1,6 @@
 import math
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import cv2
 import numpy as np
@@ -60,21 +60,21 @@ def calculate_contour_distance(
     c_x2 = x2 + w2 / 2
     c_y2 = y2 + h2 / 2
 
-    return max(abs(c_x1 - c_x2) - (w1 + w2) / 2, abs(c_y1 - c_y2) - (h1 + h2) / 2)
+    return int(max(abs(c_x1 - c_x2) - (w1 + w2) / 2, abs(c_y1 - c_y2) - (h1 + h2) / 2))
 
 
 def agglomerative_cluster(
-    contours: cv2.typing.MatLike, threshold_distance: int
-) -> cv2.typing.MatLike:
+    contours: List[np.ndarray], threshold_distance: int
+) -> List[np.ndarray]:
     """
     Perform agglomerative clustering to merge contours that are within a certain distance of each other.
 
     Args:
-        contours (cv2.typing.MatLike): A list of contours.
+        contours (list[np.ndarray]): A list of contours.
         threshold_distance (int): The distance threshold for merging contours.
 
     Returns:
-        cv2.typing.MatLike: The clustered contours.
+        list[np.ndarray]: The clustered contours.
     """
 
     current_contours = contours
@@ -94,7 +94,11 @@ def agglomerative_cluster(
                     min_distance = distance
                     min_coordinate = (x, y)
 
-        if min_distance < threshold_distance:
+        if (
+            min_distance is not None
+            and min_coordinate is not None
+            and min_distance < threshold_distance
+        ):
             index1, index2 = min_coordinate
             current_contours[index1] = merge_contours(
                 current_contours[index1], current_contours[index2]
@@ -127,7 +131,7 @@ def find_contours_in_image(image: cv2.typing.MatLike) -> Dict[str, np.ndarray]:
 
     threshold = math.sqrt((image.shape[0] / 100) ** 2 + (image.shape[1] / 100) ** 2)
 
-    filters_contours = agglomerative_cluster(contours_list, threshold)
+    filters_contours = agglomerative_cluster(contours_list, int(threshold))
 
     detections = {}
 
