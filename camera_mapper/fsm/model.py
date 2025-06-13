@@ -55,6 +55,7 @@ class CameraMapperModel:
         self.__error: Optional[Exception] = None
         self.xml_clickables: Dict[str, np.ndarray] = {}
         self.xml_elements: Dict[str, np.ndarray] = {}
+        self.xml_portrait: Dict[str, np.ndarray] = {}
         self.image_clickables: Dict[str, np.ndarray] = {}
         self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
             # Basics
@@ -422,7 +423,7 @@ class CameraMapperModel:
 
     # endregion: Flash actions mapping
 
-    # region: Portrait finding
+    # region: Portrait Mode
     def find_portrait(self) -> None:
         """
         Finds the portrait mode button on the device screen.
@@ -438,7 +439,20 @@ class CameraMapperModel:
             print("AI")
             pass
 
-    # endregion: Portrait finding
+    def process_portrait_mode(self) -> None:
+        """
+        Processes the portrait mode by clicking on the portrait button and confirming the action.
+        """
+        pass
+        # self.device.actions.click_by_coordinates(
+        #     *self.mapping_elements["PORTRAIT_MODE"]
+        # )
+        # time.sleep(1)
+        # import ipdb
+
+        # ipdb.set_trace()
+
+    # endregion: Portrait Mode
     def success_message(self):
         print(self.mapping_elements)
         print("Device mapping completed successfully.")

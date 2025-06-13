@@ -60,6 +60,10 @@ class CameraMapperFSM(GraphMachine):
             name="portrait_finding",
             on_enter=["current_state", "find_portrait"],
         )
+        portrait_mode_processing = State(
+            name="portrait_mode_processing",
+            on_enter=["current_state", "process_portrait_mode"],
+        )
         finished = State(
             name="finished",
             on_enter=["current_state", "success_message"],
@@ -78,6 +82,7 @@ class CameraMapperFSM(GraphMachine):
             xml_flash,
             flash_actions,
             portrait_finding,
+            portrait_mode_processing,
             finished,
         ]
 
@@ -155,8 +160,13 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "portrait_finding",
             },
             {
-                "trigger": "portrait_finding_to_finished",
+                "trigger": "portrait_finding_to_portrait_mode_processing",
                 "source": "portrait_finding",
+                "dest": "portrait_mode_processing",
+            },
+            {
+                "trigger": "portrait_mode_processing_to_finished",
+                "source": "portrait_mode_processing",
                 "dest": "finished",
             },
         ]
