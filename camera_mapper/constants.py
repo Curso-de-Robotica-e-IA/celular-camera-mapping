@@ -26,6 +26,18 @@ QUICK_CONTROL_NAMES = [
     "control",
     "quick",
 ]
+OBJECTS_OF_INTEREST = [
+    "PORTRAIT",
+    "PHOTO",
+    ".5",
+    ".6",
+    "1X",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+]
 
 MAPPING_REQUIREMENTS = {
     "STATE_REQUIRES": {

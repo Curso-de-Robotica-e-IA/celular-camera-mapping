@@ -100,10 +100,22 @@ class CameraMapperFSM(GraphMachine):
                 "unless": ["connected"],
             },
             {
-                "trigger": "device_connection_to_camera_open",
+                "trigger": "device_connection_to_tmp_dir",
                 "source": "device_connection",
-                "dest": "camera_open",
+                "dest": "tmp_dir",
                 "conditions": ["connected"],
+            },
+            {
+                "trigger": "tmp_dir_to_camera_open",
+                "source": "tmp_dir",
+                "dest": "camera_open",
+                "unless": ["in_error"],
+            },
+            {
+                "trigger": "tmp_dir_to_general_error",
+                "source": "tmp_dir",
+                "dest": "general_error",
+                "unless": ["connected"],
             },
             {
                 "trigger": "camera_open_to_camera_open",

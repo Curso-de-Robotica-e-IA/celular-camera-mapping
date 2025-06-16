@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
 
 import cv2
+import easyocr
 import numpy as np
 
 from camera_mapper.constants import (
@@ -12,6 +13,7 @@ from camera_mapper.constants import (
     CAPTURE_NAMES,
     FLASH_MENU_NAMES,
     MODE,
+    OBJECTS_OF_INTEREST,
     PATH_TO_META_FOLDER,
     PATH_TO_OUTPUT_FOLDER,
     PATH_TO_TMP_FOLDER,
@@ -19,17 +21,9 @@ from camera_mapper.constants import (
     SWITCH_CAM_NAMES,
 )
 from camera_mapper.device import Device
-from camera_mapper.image_labeling import (
-    click_on_image,
-    confirm_labeling,
-    match_elements_to_clicks,
-)
 from camera_mapper.screen_processing.image_processing import (
     draw_clickable_elements,
-    find_contours_in_image,
     load_image,
-    merge_bounds,
-    separate_xml_from_image_clickables,
 )
 from camera_mapper.screen_processing.xml_processing import (
     clickable_elements,
@@ -57,6 +51,7 @@ class CameraMapperModel:
         self.xml_elements: Dict[str, np.ndarray] = {}
         self.xml_portrait: Dict[str, np.ndarray] = {}
         self.image_clickables: Dict[str, np.ndarray] = {}
+        self.reader = easyocr.Reader(["en"], gpu=False)
         self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
             # Basics
             "CAM": None,
@@ -157,7 +152,7 @@ class CameraMapperModel:
             return
         time.sleep(2)
         self.device.actions.camera.open()
-        time.sleep(2)  # Wait for the camera app to open
+        time.sleep(10)  # Wait for the camera app to open
 
     def check_camera_app(self) -> bool:
         """
@@ -212,6 +207,61 @@ class CameraMapperModel:
             self.__error = e
         return clickables, elements
 
+    def treat_zoom_clickables(
+        self, clickables: Dict[str, np.ndarray]
+    ) -> Dict[str, np.ndarray]:
+        """
+        Treats zoom-related clickables by adjusting them and renaming on Dict.
+        Args:
+            clickables (Dict[str, np.ndarray]): A dictionary of clickable elements.
+        Returns:
+            Dict[str, np.ndarray]: The modified dictionary with zoom-related clickables adjusted.
+        """
+        possible_dict = {}
+        for key, value in clickables.items():
+            if key[0].isdigit() or key[0] == ".":
+                possible_dict[key.replace("X", "").replace("x", "")] = value
+        zoom_1x = possible_dict["1"]
+        new_dict = {"ZOOM_1": zoom_1x}
+        for name, box in possible_dict.items():
+            if name != "1":
+                box_left_up = box[0][0]
+                if box_left_up < zoom_1x[0][0]:
+                    new_dict["ZOOM_." + name] = box
+                else:
+                    new_dict["ZOOM_" + name] = box
+        return new_dict
+
+    def apply_ocr_to_contours(self) -> Dict[str, np.ndarray]:
+        """
+        Applies OCR to the contours of clickable elements to extract text.
+        Returns:
+            Dict[str, np.ndarray]: A dictionary where keys are centroids of clickable elements
+                                   and values are their bounds after applying OCR.
+        """
+        ocred = {}
+        ocr_result = self.reader.readtext(
+            str(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
+        )
+        for rect, text, _ in ocr_result:
+            text = text.strip().upper().replace(" ", "_")
+            if text == "IX":
+                text = "1X"
+            if text in OBJECTS_OF_INTEREST:
+                ocred[text] = np.array([rect[0], rect[2]], dtype=np.int32)
+        found_zooms = self.treat_zoom_clickables(ocred)
+        ocred.update(found_zooms)
+        to_pop = [
+            key
+            for key in ocred
+            if not [
+                key.startswith(prefix) for prefix in ["ZOOM", "PORTRAIT", "PHOTO"]
+            ].count(True)
+        ]
+        for key in to_pop:
+            ocred.pop(key, None)
+        return ocred
+
     def process_screen_image(self, image: np.ndarray) -> Dict[str, np.ndarray]:
         """
         Processes the captured screen image to extract information such as actions and menus.
@@ -221,11 +271,7 @@ class CameraMapperModel:
             Dict[str, np.ndarray]: A dictionary where keys are centroids of clickable elements
                                    and values are their bounds after processing the image.
         """
-        contours = find_contours_in_image(image)
-        if contours is None:
-            self.__error = ValueError("No contours found in the screen image.")
-            return {}
-        contours = separate_xml_from_image_clickables(contours, self.xml_clickables)
+        contours = self.apply_ocr_to_contours()
         try:
             cv2.imwrite(
                 str(PATH_TO_TMP_FOLDER.joinpath("image_clickable_elements.png")),
@@ -428,29 +474,35 @@ class CameraMapperModel:
         """
         Finds the portrait mode button on the device screen.
         """
-        portrait_name, portrait_bounds = find_element(
-            "PORTRAIT",
-            self.xml_elements,
-        )
+        pstr = "PORTRAIT"
+        portrait_name, portrait_bounds = find_element(pstr, self.xml_elements)
         if portrait_name and portrait_bounds is not None:
             portrait_centroid = portrait_bounds.mean(axis=0).astype(np.int32)
             self.mapping_elements["PORTRAIT_MODE"] = portrait_centroid
         else:
-            print("AI")
-            pass
+            if pstr in self.image_clickables:
+                portrait_centroid = (
+                    self.image_clickables[pstr].mean(axis=0).astype(np.int32)
+                )
+                self.mapping_elements["PORTRAIT_MODE"] = portrait_centroid
+            else:
+                self.__error = ValueError(
+                    "Portrait mode button not found in the XML or image clickables."
+                )
+                return
 
     def process_portrait_mode(self) -> None:
         """
         Processes the portrait mode by clicking on the portrait button and confirming the action.
         """
-        pass
-        # self.device.actions.click_by_coordinates(
-        #     *self.mapping_elements["PORTRAIT_MODE"]
-        # )
-        # time.sleep(1)
-        # import ipdb
+        time.sleep(2)
+        self.device.actions.click_by_coordinates(
+            *self.mapping_elements["PORTRAIT_MODE"]
+        )
+        time.sleep(1)
+        import ipdb
 
-        # ipdb.set_trace()
+        ipdb.set_trace()
 
     # endregion: Portrait Mode
     def success_message(self):
