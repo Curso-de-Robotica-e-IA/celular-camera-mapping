@@ -22,8 +22,10 @@ from camera_mapper.constants import (
 )
 from camera_mapper.device import Device
 from camera_mapper.screen_processing.image_processing import (
+    blur_patterns,
     draw_clickable_elements,
     load_image,
+    search_for_blur_button,
 )
 from camera_mapper.screen_processing.xml_processing import (
     clickable_elements,
@@ -59,7 +61,6 @@ class CameraMapperModel:
             "TOUCH": None,
             "QUICK_CONTROLS": None,
             # Depending on the device
-            "PORTRAIT_MODE": None,
             "ASPECT_RATIO_MENU": None,
             "ASPECT_RATIO_3_4": None,
             "ASPECT_RATIO_9_16": None,
@@ -69,6 +70,8 @@ class CameraMapperModel:
             "FLASH_ON": None,
             "FLASH_OFF": None,
             "FLASH_AUTO": None,
+            "PORTRAIT_MODE": None,
+            "BLUR_MENU": None,
         }
         self.state = "IDLE"
 
@@ -499,7 +502,31 @@ class CameraMapperModel:
         self.device.actions.click_by_coordinates(
             *self.mapping_elements["PORTRAIT_MODE"]
         )
-        time.sleep(1)
+        time.sleep(2)
+        self.map_blur_menu()
+
+    def map_blur_menu(self) -> None:
+        """
+        Maps the blur menu in portrait mode by searching for it in the captured image.
+        """
+        self.capture_screen()
+        image = load_image(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
+        patterns = blur_patterns()
+        bounds = search_for_blur_button(image, patterns)
+        if np.any(bounds) < 0:
+            self.__error = ValueError("Blur menu not found in the image.")
+            return
+        blur_centroid = bounds.mean(axis=0).astype(np.int32)
+        self.mapping_elements["BLUR_MENU"] = blur_centroid
+
+    def map_blur_bar(self) -> None:
+        """
+        Maps the blur bar in portrait mode by clicking on the blur menu and adjusting the blur level.
+        """
+        self.device.actions.click_by_coordinates(*self.mapping_elements["BLUR_MENU"])
+        time.sleep(2)
+        self.capture_screen()
+        # TODO: FIND BLUR BAR VIA YELLOW VERTICAL LINE
         import ipdb
 
         ipdb.set_trace()

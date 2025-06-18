@@ -3,7 +3,7 @@ from camera_mapper.fsm.model import CameraMapperModel
 
 
 def main():
-    ip = "192.168.155.22"
+    ip = "192.168.155.11"
     model = CameraMapperModel(ip)
     fsm = CameraMapperFSM(model)
     while not (fsm.is_finished() or fsm.is_general_error()):

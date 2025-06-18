@@ -1,9 +1,10 @@
-import math
 from pathlib import Path
 from typing import Dict, List
 
 import cv2
 import numpy as np
+
+from camera_mapper.constants import CLUSTER_THRESHOLD
 
 
 def load_image(image_path: Path) -> cv2.typing.MatLike:
@@ -129,9 +130,7 @@ def find_contours_in_image(image: cv2.typing.MatLike) -> Dict[str, np.ndarray]:
     for elem in contours:
         contours_list.append(elem)
 
-    threshold = math.sqrt((image.shape[0] / 100) ** 2 + (image.shape[1] / 100) ** 2)
-
-    filters_contours = agglomerative_cluster(contours_list, int(threshold))
+    filters_contours = agglomerative_cluster(contours_list, CLUSTER_THRESHOLD)
 
     detections = {}
 
@@ -147,7 +146,7 @@ def find_contours_in_image(image: cv2.typing.MatLike) -> Dict[str, np.ndarray]:
 
 
 def draw_clickable_elements(
-    image: np.ndarray, clickables: Dict[str, np.ndarray]
+    image: np.ndarray, clickables: Dict[str, np.ndarray], with_text: bool = False
 ) -> np.ndarray:
     """
     Draw clickable elements on an image.
@@ -155,17 +154,18 @@ def draw_clickable_elements(
     Args:
         image (np.ndarray): The image to draw on.
         clickables (Dict[str, np.ndarray]): A dictionary of clickable elements with their bounds.
+        with_text (bool): Whether to include the index in the text label.
 
     Returns:
         np.ndarray: The image with clickable elements highlighted.
     """
     new_image = image.copy()
 
-    for bounds in clickables.values():
+    for text, bounds in clickables.items():
         cv2.rectangle(new_image, bounds[0], bounds[1], (0, 255, 0), 2)
         cv2.putText(
             new_image,
-            "",
+            text if with_text else "",
             (bounds[0][0], bounds[0][1]),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -267,3 +267,44 @@ def proportional_resize(image, target_width=None, target_height=None):
     )
 
     return resized_image
+
+
+def blur_patterns() -> List[cv2.typing.MatLike]:
+    """
+    Load and blur the patterns used for template matching.
+
+    Returns:
+        List[cv2.typing.MatLike]: The list of the image patterns of blur button.
+    """
+    patterns = []
+    for i in range(2):
+        pattern_path = Path(__file__).parent / "blur_buttons" / f"pattern_{i}.png"
+        pattern = load_image(pattern_path)[:, :, 0]
+        _, pattern = cv2.threshold(pattern, 200, 255, cv2.THRESH_BINARY)
+        patterns.append(pattern)
+    return patterns
+
+
+def search_for_blur_button(
+    image: cv2.typing.MatLike, patterns: List[cv2.typing.MatLike]
+) -> bool:
+    """
+    Search for the blur button in the image using template matching.
+
+    Args:
+        image (cv2.typing.MatLike): The input image.
+        patterns (List[cv2.typing.MatLike]): The list of patterns to search for.
+
+    Returns:
+        bool: True if the blur button is found, False otherwise.
+    """
+    for pattern in patterns:
+        w, h = pattern.shape[::-1]
+        res = cv2.matchTemplate(image[:, :, 0], pattern, cv2.TM_CCOEFF_NORMED)
+        threshold = 0.8
+        loc = np.where(res >= threshold)
+        if np.any(loc):
+            _, _, _, top_left = cv2.minMaxLoc(res)
+            bottom_right = (top_left[0] + w, top_left[1] + h)
+            return np.array([top_left, bottom_right])
+    return np.array([[-1, -1], [-1, -1]])

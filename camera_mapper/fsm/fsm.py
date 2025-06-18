@@ -64,6 +64,14 @@ class CameraMapperFSM(GraphMachine):
             name="portrait_mode_processing",
             on_enter=["current_state", "process_portrait_mode"],
         )
+        blur_menu_mapping = State(
+            name="blur_menu_mapping",
+            on_enter=["current_state", "map_blur_menu"],
+        )
+        blur_bar_mapping = State(
+            name="blur_bar_mapping",
+            on_enter=["current_state", "map_blur_bar"],
+        )
         finished = State(
             name="finished",
             on_enter=["current_state", "success_message"],
@@ -83,6 +91,8 @@ class CameraMapperFSM(GraphMachine):
             flash_actions,
             portrait_finding,
             portrait_mode_processing,
+            blur_menu_mapping,
+            blur_bar_mapping,
             finished,
         ]
 
@@ -177,8 +187,18 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "portrait_mode_processing",
             },
             {
-                "trigger": "portrait_mode_processing_to_finished",
+                "trigger": "portrait_mode_processing_to_blur_menu_mapping",
                 "source": "portrait_mode_processing",
+                "dest": "blur_menu_mapping",
+            },
+            {
+                "trigger": "blur_menu_mapping_to_blur_bar_mapping",
+                "source": "blur_menu_mapping",
+                "dest": "blur_bar_mapping",
+            },
+            {
+                "trigger": "blur_bar_mapping_to_finished",
+                "source": "blur_bar_mapping",
                 "dest": "finished",
             },
         ]
