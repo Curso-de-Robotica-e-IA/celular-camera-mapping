@@ -1,12 +1,15 @@
 import json
 import time
+
+from doctr.models import ocr_predictor
+from doctr.io import DocumentFile
+
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
 from rich.console import Console
 
 import cv2
-import easyocr
 import numpy as np
 
 from camera_mapper.constants import (
@@ -54,7 +57,7 @@ class CameraMapperModel:
         self.xml_elements: Dict[str, np.ndarray] = {}
         self.xml_portrait: Dict[str, np.ndarray] = {}
         self.image_clickables: Dict[str, np.ndarray] = {}
-        self.reader = easyocr.Reader(["en"], gpu=False)
+        self.ocr = ocr_predictor(pretrained=True)
         self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
             # Basics
             "CAM": None,
@@ -152,9 +155,12 @@ class CameraMapperModel:
         if self.device.actions is None:
             self.__error = ValueError("Device actions are not available.")
             return
-        time.sleep(2)
+        current_activity = self.device.info.actual_activity().lower()
+        if "cam" in current_activity:
+            self.device.actions.home_button()
+            self.device.actions.camera.close()
+            time.sleep(1)
         self.device.actions.camera.open()
-        time.sleep(2)  # Wait for the camera app to open
 
     def check_camera_app(self) -> bool:
         """
@@ -165,6 +171,7 @@ class CameraMapperModel:
             self.__error = ValueError("Device info is not available.")
             return False
         current_activity = self.device.info.actual_activity().lower()
+        time.sleep(5)  # Allow some time for the activity to update
         camera_opened = "cam" in current_activity
         self.__camera_app_open_attempts += 1
         if not camera_opened and self.__camera_app_open_attempts > 3:
@@ -242,26 +249,27 @@ class CameraMapperModel:
                                    and values are their bounds after applying OCR.
         """
         ocred = {}
-        ocr_result = self.reader.readtext(
-            str(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
-        )
-        for rect, text, _ in ocr_result:
-            text = text.strip().upper().replace(" ", "_")
-            if text == "IX":
-                text = "1X"
-            if text in OBJECTS_OF_INTEREST:
-                ocred[text] = np.array([rect[0], rect[2]], dtype=np.int32)
+        path = str(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
+        img_doc = DocumentFile.from_images(path)
+        result = self.ocr(img_doc)
+
+        width = self.device.properties.get("width", 0)
+        height = self.device.properties.get("height", 0)
+        for line in result.pages[0].blocks[0].lines:
+            for word in line.words:
+                proc_word = word.value.strip().upper()
+                if proc_word == "IX":
+                    proc_word = "1X"
+                if proc_word in OBJECTS_OF_INTEREST:
+                    ocred[proc_word] = np.array(
+                        [
+                            [word.geometry[0][0] * width, word.geometry[0][1] * height],
+                            [word.geometry[1][0] * width, word.geometry[1][1] * height],
+                        ],
+                        dtype=np.int32,
+                    )
         found_zooms = self.treat_zoom_clickables(ocred)
         ocred.update(found_zooms)
-        to_pop = [
-            key
-            for key in ocred
-            if not [
-                key.startswith(prefix) for prefix in ["ZOOM", "PORTRAIT", "PHOTO"]
-            ].count(True)
-        ]
-        for key in to_pop:
-            ocred.pop(key, None)
         return ocred
 
     def process_screen_image(self, image: np.ndarray) -> Dict[str, np.ndarray]:
@@ -585,5 +593,5 @@ class CameraMapperModel:
 
     # endregion: Save mapping
     def success_message(self):
-        self.device.actions.home_button()
+        self.device.actions.camera.close()
         self.console.print("Device mapping completed successfully!")
