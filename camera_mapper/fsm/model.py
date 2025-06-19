@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
+from rich.console import Console
 
 import cv2
 import easyocr
@@ -15,8 +16,6 @@ from camera_mapper.constants import (
     FLASH_MENU_NAMES,
     MODE,
     OBJECTS_OF_INTEREST,
-    PATH_TO_META_FOLDER,
-    PATH_TO_OUTPUT_FOLDER,
     PATH_TO_TMP_FOLDER,
     QUICK_CONTROL_NAMES,
     SWITCH_CAM_NAMES,
@@ -46,9 +45,8 @@ class CameraMapperModel:
         """
 
         self.__ip = ip
+        self.console = Console()
         self.device = Device()
-        self.device_objects_dir: Optional[Path] = None
-        self.device_output_dir: Optional[Path] = None
         self.__camera_app_open_attempts = 0
         self.__blur_button_idx = -1
         self.__error: Optional[Exception] = None
@@ -120,9 +118,6 @@ class CameraMapperModel:
         if model_property is None:
             self.__error = ValueError("Device model property is not available.")
             return
-        device_target = model_property.lower().replace(" ", "_").title()
-        self.device_objects_dir = Path.joinpath(PATH_TO_META_FOLDER, device_target)
-        self.device_output_dir = Path.joinpath(PATH_TO_OUTPUT_FOLDER, device_target)
 
     def connected(self):
         """
@@ -572,20 +567,23 @@ class CameraMapperModel:
             self.device.properties.get("brand", "Unknown")
             .lower()
             .replace(" ", "_")
+            .replace("-", "_")
             .upper()
         )
         model = (
             self.device.properties.get("model", "Unknown")
             .lower()
             .replace(" ", "_")
+            .replace("-", "_")
             .upper()
         )
-        out_name = f"{brand}-{model}_mapping.json"
-        with open(out_name, "w") as f:
+        out_name = f"{brand}-{model}-mapping.json"
+        full_path = Path().joinpath(out_name)
+        with open(full_path, "w") as f:
             json.dump(to_save, f)
+        self.console.print(f"Mapping saved to {full_path}")
 
     # endregion: Save mapping
     def success_message(self):
         self.device.actions.home_button()
-        print(self.mapping_elements)
-        print("Device mapping completed successfully.")
+        self.console.print("Device mapping completed successfully!")
