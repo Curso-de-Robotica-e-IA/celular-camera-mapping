@@ -541,6 +541,22 @@ class CameraMapperModel:
                 )
 
     # endregion: Portrait Mode
+
+    # region: Zoom mapping
+    def map_zoom(self) -> None:
+        """
+        Maps the zoom buttons on the device screen.
+        """
+        filter_zoom_clickables = [key for key in self.image_clickables if "ZOOM" in key]
+        if not filter_zoom_clickables:
+            self.__error = ValueError("No zoom buttons found in the image clickables.")
+            return
+        for key in filter_zoom_clickables:
+            value = self.image_clickables[key]
+            key = key.replace("..", ".")
+            self.mapping_elements[key] = value
+
+    # endregion: Zoom mapping
     def success_message(self):
         print(self.mapping_elements)
         print("Device mapping completed successfully.")
