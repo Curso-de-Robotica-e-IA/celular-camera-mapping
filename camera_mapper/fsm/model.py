@@ -24,6 +24,7 @@ from camera_mapper.device import Device
 from camera_mapper.screen_processing.image_processing import (
     blur_patterns,
     draw_clickable_elements,
+    get_middle_blur_circle_bar,
     load_image,
     search_for_blur_button,
 )
@@ -48,6 +49,7 @@ class CameraMapperModel:
         self.device_objects_dir: Optional[Path] = None
         self.device_output_dir: Optional[Path] = None
         self.__camera_app_open_attempts = 0
+        self.__blur_button_idx = -1
         self.__error: Optional[Exception] = None
         self.xml_clickables: Dict[str, np.ndarray] = {}
         self.xml_elements: Dict[str, np.ndarray] = {}
@@ -72,6 +74,7 @@ class CameraMapperModel:
             "FLASH_AUTO": None,
             "PORTRAIT_MODE": None,
             "BLUR_MENU": None,
+            "BLUR_BAR_MIDDLE": None,
         }
         self.state = "IDLE"
 
@@ -512,8 +515,8 @@ class CameraMapperModel:
         self.capture_screen()
         image = load_image(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
         patterns = blur_patterns()
-        bounds = search_for_blur_button(image, patterns)
-        if bounds.max() < 0:
+        bounds, self.__blur_button_idx = search_for_blur_button(image, patterns)
+        if self.__blur_button_idx < 0:
             self.__error = ValueError("Blur menu not found in the image.")
             return
         blur_centroid = bounds.mean(axis=0).astype(np.int32)
@@ -529,10 +532,13 @@ class CameraMapperModel:
             )
             time.sleep(2)
             self.capture_screen()
-            # TODO: FIND BLUR BAR VIA YELLOW VERTICAL LINE
-            import ipdb
-
-            ipdb.set_trace()
+            if self.__blur_button_idx == 0:
+                image = load_image(
+                    PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
+                )
+                self.mapping_elements["BLUR_BAR_MIDDLE"] = get_middle_blur_circle_bar(
+                    image
+                )
 
     # endregion: Portrait Mode
     def success_message(self):

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
@@ -287,7 +287,7 @@ def blur_patterns() -> List[cv2.typing.MatLike]:
 
 def search_for_blur_button(
     image: cv2.typing.MatLike, patterns: List[cv2.typing.MatLike]
-) -> np.ndarray:
+) -> Tuple[np.ndarray, int]:
     """
     Search for the blur button in the image using template matching.
 
@@ -296,9 +296,9 @@ def search_for_blur_button(
         patterns (List[cv2.typing.MatLike]): The list of patterns to search for.
 
     Returns:
-        bool: True if the blur button is found, False otherwise.
+        Tuple[np.ndarray, int]: The bounding box of the blur button and its index if found, otherwise (-1, -1).
     """
-    for pattern in patterns:
+    for i, pattern in enumerate(patterns):
         w, h = pattern.shape[::-1]
         res = cv2.matchTemplate(image[:, :, 0], pattern, cv2.TM_CCOEFF_NORMED)
         threshold = 0.8
@@ -306,5 +306,44 @@ def search_for_blur_button(
         if np.any(loc):
             _, _, _, top_left = cv2.minMaxLoc(res)
             bottom_right = (top_left[0] + w, top_left[1] + h)
-            return np.array([top_left, bottom_right])
-    return np.array([[-1, -1], [-1, -1]])
+            return (np.array([top_left, bottom_right]), i)
+    return (np.array([[-1, -1], [-1, -1]]), -1)
+
+
+def get_middle_blur_circle_bar(image: cv2.typing.MatLike) -> np.ndarray:
+    """
+    Extracts the middle point of the blur bar from the given image.
+
+    Args:
+        image (cv2.typing.MatLike): Input image with a blur bar.
+
+    Returns:
+        np.ndarray: The middle point of the blur bar.
+    """
+    lower = np.array([0, 200, 254])
+    upper = np.array([20, 205, 255])
+
+    mask = cv2.inRange(image, lower, upper)
+    edges = cv2.Canny(mask, 50, 150, apertureSize=3)
+
+    # extract lines of the edges
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, None, 50, 10)
+
+    # Get line with the maximum length
+    if lines is not None:
+        max_length = 0
+        longest_line = lines[0][0]
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            length = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+            if length > max_length:
+                max_length = length
+                longest_line = line[0]
+
+        mid_point = (
+            (longest_line[0] + longest_line[2]) // 2,
+            (longest_line[1] + longest_line[3]) // 2,
+        )
+        mid_point = np.array(mid_point, dtype=np.int32)
+        return mid_point
+    return np.array([])
