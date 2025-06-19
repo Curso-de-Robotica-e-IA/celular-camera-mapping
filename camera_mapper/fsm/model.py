@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -557,6 +558,34 @@ class CameraMapperModel:
             self.mapping_elements[key] = value.mean(axis=0).astype(np.int32)
 
     # endregion: Zoom mapping
+
+    # region: Save mapping
+    def save_mapping(self) -> None:
+        """
+        Saves the mapping elements to a JSON file.
+        """
+        to_save = {
+            key: value.tolist() if isinstance(value, np.ndarray) else value
+            for key, value in self.mapping_elements.items()
+        }
+        brand = (
+            self.device.properties.get("brand", "Unknown")
+            .lower()
+            .replace(" ", "_")
+            .upper()
+        )
+        model = (
+            self.device.properties.get("model", "Unknown")
+            .lower()
+            .replace(" ", "_")
+            .upper()
+        )
+        out_name = f"{brand}-{model}_mapping.json"
+        with open(out_name, "w") as f:
+            json.dump(to_save, f)
+
+    # endregion: Save mapping
     def success_message(self):
+        self.device.actions.home_button()
         print(self.mapping_elements)
         print("Device mapping completed successfully.")

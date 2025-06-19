@@ -76,6 +76,10 @@ class CameraMapperFSM(GraphMachine):
             name="zoom_mapping",
             on_enter=["current_state", "map_zoom"],
         )
+        save_mapping = State(
+            name="save_mapping",
+            on_enter=["current_state", "save_mapping"],
+        )
         finished = State(
             name="finished",
             on_enter=["current_state", "success_message"],
@@ -98,6 +102,7 @@ class CameraMapperFSM(GraphMachine):
             blur_menu_mapping,
             blur_bar_mapping,
             zoom_mapping,
+            save_mapping,
             finished,
         ]
 
@@ -261,8 +266,13 @@ class CameraMapperFSM(GraphMachine):
                 "conditions": ["in_error"],
             },
             {
-                "trigger": "zoom_mapping_to_finished",
+                "trigger": "zoom_mapping_to_save_mapping",
                 "source": "zoom_mapping",
+                "dest": "save_mapping",
+            },
+            {
+                "trigger": "save_mapping_to_finished",
+                "source": "save_mapping",
                 "dest": "finished",
             },
         ]
