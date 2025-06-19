@@ -202,7 +202,7 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "finished",
             },
         ]
-
+        # TODO: Adicionar transicoes de erro
         super().__init__(
             model=model,
             states=states,

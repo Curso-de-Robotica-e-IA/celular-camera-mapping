@@ -287,7 +287,7 @@ def blur_patterns() -> List[cv2.typing.MatLike]:
 
 def search_for_blur_button(
     image: cv2.typing.MatLike, patterns: List[cv2.typing.MatLike]
-) -> bool:
+) -> np.ndarray:
     """
     Search for the blur button in the image using template matching.
 

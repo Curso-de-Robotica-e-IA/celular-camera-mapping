@@ -513,7 +513,7 @@ class CameraMapperModel:
         image = load_image(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
         patterns = blur_patterns()
         bounds = search_for_blur_button(image, patterns)
-        if np.any(bounds) < 0:
+        if bounds.max() < 0:
             self.__error = ValueError("Blur menu not found in the image.")
             return
         blur_centroid = bounds.mean(axis=0).astype(np.int32)
@@ -523,13 +523,16 @@ class CameraMapperModel:
         """
         Maps the blur bar in portrait mode by clicking on the blur menu and adjusting the blur level.
         """
-        self.device.actions.click_by_coordinates(*self.mapping_elements["BLUR_MENU"])
-        time.sleep(2)
-        self.capture_screen()
-        # TODO: FIND BLUR BAR VIA YELLOW VERTICAL LINE
-        import ipdb
+        if self.device.actions is not None:
+            self.device.actions.click_by_coordinates(
+                *self.mapping_elements["BLUR_MENU"]
+            )
+            time.sleep(2)
+            self.capture_screen()
+            # TODO: FIND BLUR BAR VIA YELLOW VERTICAL LINE
+            import ipdb
 
-        ipdb.set_trace()
+            ipdb.set_trace()
 
     # endregion: Portrait Mode
     def success_message(self):
