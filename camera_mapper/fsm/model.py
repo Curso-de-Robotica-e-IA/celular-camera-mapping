@@ -158,7 +158,7 @@ class CameraMapperModel:
             return
         time.sleep(2)
         self.device.actions.camera.open()
-        time.sleep(10)  # Wait for the camera app to open
+        time.sleep(2)  # Wait for the camera app to open
 
     def check_camera_app(self) -> bool:
         """
@@ -554,7 +554,7 @@ class CameraMapperModel:
         for key in filter_zoom_clickables:
             value = self.image_clickables[key]
             key = key.replace("..", ".")
-            self.mapping_elements[key] = value
+            self.mapping_elements[key] = value.mean(axis=0).astype(np.int32)
 
     # endregion: Zoom mapping
     def success_message(self):
