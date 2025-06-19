@@ -72,6 +72,10 @@ class CameraMapperFSM(GraphMachine):
             name="blur_bar_mapping",
             on_enter=["current_state", "map_blur_bar"],
         )
+        zoom_mapping = State(
+            name="zoom_mapping",
+            on_enter=["current_state", "map_zoom"],
+        )
         finished = State(
             name="finished",
             on_enter=["current_state", "success_message"],
@@ -93,6 +97,7 @@ class CameraMapperFSM(GraphMachine):
             portrait_mode_processing,
             blur_menu_mapping,
             blur_bar_mapping,
+            zoom_mapping,
             finished,
         ]
 
@@ -162,9 +167,21 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "xml_aspect_ratio",
             },
             {
+                "trigger": "basic_xml_mapping_to_general_error",
+                "source": "basic_xml_mapping",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
                 "trigger": "xml_aspect_ratio_to_aspect_ratio_actions",
                 "source": "xml_aspect_ratio",
                 "dest": "aspect_ratio_actions",
+            },
+            {
+                "trigger": "aspect_ratio_actions_to_general_error",
+                "source": "aspect_ratio_actions",
+                "dest": "general_error",
+                "conditions": ["in_error"],
             },
             {
                 "trigger": "aspect_ratio_actions_to_xml_flash",
@@ -172,9 +189,21 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "xml_flash",
             },
             {
+                "trigger": "xml_flash_to_general_error",
+                "source": "xml_flash",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
                 "trigger": "xml_flash_to_flash_actions",
                 "source": "xml_flash",
                 "dest": "flash_actions",
+            },
+            {
+                "trigger": "flash_actions_to_general_error",
+                "source": "flash_actions",
+                "dest": "general_error",
+                "conditions": ["in_error"],
             },
             {
                 "trigger": "flash_actions_to_portrait_finding",
@@ -182,9 +211,21 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "portrait_finding",
             },
             {
+                "trigger": "portrait_finding_to_general_error",
+                "source": "portrait_finding",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
                 "trigger": "portrait_finding_to_portrait_mode_processing",
                 "source": "portrait_finding",
                 "dest": "portrait_mode_processing",
+            },
+            {
+                "trigger": "portrait_mode_processing_to_general_error",
+                "source": "portrait_mode_processing",
+                "dest": "general_error",
+                "conditions": ["in_error"],
             },
             {
                 "trigger": "portrait_mode_processing_to_blur_menu_mapping",
@@ -192,13 +233,36 @@ class CameraMapperFSM(GraphMachine):
                 "dest": "blur_menu_mapping",
             },
             {
+                "trigger": "blur_menu_mapping_to_general_error",
+                "source": "blur_menu_mapping",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
                 "trigger": "blur_menu_mapping_to_blur_bar_mapping",
                 "source": "blur_menu_mapping",
                 "dest": "blur_bar_mapping",
             },
             {
-                "trigger": "blur_bar_mapping_to_finished",
+                "trigger": "blur_bar_mapping_to_general_error",
                 "source": "blur_bar_mapping",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
+                "trigger": "blur_bar_mapping_to_zoom_mapping",
+                "source": "blur_bar_mapping",
+                "dest": "zoom_mapping",
+            },
+            {
+                "trigger": "zoom_mapping_to_general_error",
+                "source": "zoom_mapping",
+                "dest": "general_error",
+                "conditions": ["in_error"],
+            },
+            {
+                "trigger": "zoom_mapping_to_finished",
+                "source": "zoom_mapping",
                 "dest": "finished",
             },
         ]
