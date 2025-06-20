@@ -419,11 +419,11 @@ class CameraMapperModel:
             )
             return
         self.device.actions.click_by_coordinates(*aspect_ratio_menu)
-        time.sleep(1)
+        time.sleep(0.5)
         NAMES_DICT = {
-            "1:1": ["1:1", "1_1", "SQUARE"],
-            "3:4": ["3:4", "3_4", "NORMAL"],
-            "9:16": ["9:16", "9_16", "WIDE"],
+            "1:1": ["1:1", "1_1", "SQUARE", "1_by_1"],
+            "3:4": ["3:4", "3_4", "NORMAL", "3_by_4"],
+            "9:16": ["9:16", "9_16", "WIDE", "9_by_16"],
             "FULL": ["FULL"],
         }
         elements = self.process_xml()
@@ -536,7 +536,7 @@ class CameraMapperModel:
             )
             time.sleep(2)
             self.capture_screen()
-            if self.__blur_button_idx in [0, 1]:
+            if self.__blur_button_idx in [0, 1, 2]:
                 image = load_image(
                     PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
                 )

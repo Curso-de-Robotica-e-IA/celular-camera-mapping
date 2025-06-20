@@ -13,5 +13,8 @@
     "files.autoSave": "onFocusChange",
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
     }
 }
