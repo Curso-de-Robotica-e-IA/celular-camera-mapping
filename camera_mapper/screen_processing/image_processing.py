@@ -277,7 +277,7 @@ def blur_patterns() -> List[cv2.typing.MatLike]:
         List[cv2.typing.MatLike]: The list of the image patterns of blur button.
     """
     patterns = []
-    for i in range(2):
+    for i in range(3):
         pattern_path = Path(__file__).parent / "blur_buttons" / f"pattern_{i}.png"
         pattern = load_image(pattern_path)[:, :, 0]
         _, pattern = cv2.threshold(pattern, 200, 255, cv2.THRESH_BINARY)

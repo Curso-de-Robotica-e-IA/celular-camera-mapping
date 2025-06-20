@@ -536,7 +536,7 @@ class CameraMapperModel:
             )
             time.sleep(2)
             self.capture_screen()
-            if self.__blur_button_idx == 0:
+            if self.__blur_button_idx in [0, 1]:
                 image = load_image(
                     PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
                 )
