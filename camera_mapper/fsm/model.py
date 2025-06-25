@@ -60,6 +60,12 @@ class CameraMapperModel:
         self.image_clickables: Dict[str, np.ndarray] = {}
         self.ocr = ocr_predictor(pretrained=True)
         self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
+            # Device properties
+            "HARDWARE_VERSION": None,
+            "SOFTWARE_VERSION": None,
+            "BRAND": None,
+            "MODEL": None,
+            "CAMERA_VERSION": None,
             # Basics
             "CAM": None,
             "TAKE_PICTURE": None,
@@ -125,6 +131,17 @@ class CameraMapperModel:
         if model_property is None:
             self.__error = ValueError("Device model property is not available.")
             return
+        self.mapping_elements["HARDWARE_VERSION"] = self.device.properties.get(
+            "hardware_version", "Unknown"
+        )
+        self.mapping_elements["SOFTWARE_VERSION"] = self.device.properties.get(
+            "software_version", "Unknown"
+        )
+        self.mapping_elements["BRAND"] = self.device.properties.get("brand", "Unknown")
+        self.mapping_elements["MODEL"] = model_property
+        self.mapping_elements["CAMERA_VERSION"] = self.device.properties.get(
+            "camera_version", "Unknown"
+        )
 
     def connected(self):
         """

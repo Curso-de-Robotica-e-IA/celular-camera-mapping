@@ -34,74 +34,82 @@ mapper.map()
 ## Output example
 ```json
 {
+    "HARDWARE_VERSION": "1.0.0",
+    "SOFTWARE_VERSION": "14",
+    "BRAND": "samsung",
+    "MODEL": "SM-A042M",
+    "CAMERA_VERSION": "11.0.02.95 (A042MUBU6DXA2-00)",
     "CAM": [
-        270,
-        2090
+        599,
+        1350
     ],
     "TAKE_PICTURE": [
-        540,
-        2090
+        360,
+        1350
     ],
     "TOUCH": [
-        540,
-        1200
+        360,
+        800
     ],
     "QUICK_CONTROLS": null,
     "ASPECT_RATIO_MENU": [
-        756,
-        200
+        500,
+        117
     ],
     "ASPECT_RATIO_3_4": [
-        180,
-        200
+        192,
+        118
     ],
     "ASPECT_RATIO_9_16": [
-        540,
-        200
+        304,
+        118
     ],
-    "ASPECT_RATIO_1_1": null,
+    "ASPECT_RATIO_1_1": [
+        416,
+        118
+    ],
     "ASPECT_RATIO_FULL": [
-        900,
-        200
+        528,
+        118
     ],
     "FLASH_MENU": [
-        108,
-        200
+        220,
+        117
     ],
     "FLASH_ON": [
-        540,
-        200
+        472,
+        118
     ],
     "FLASH_OFF": [
-        900,
-        200
+        248,
+        118
     ],
     "FLASH_AUTO": [
-        180,
-        200
+        360,
+        118
     ],
     "PORTRAIT_MODE": [
-        773,
-        1892
+        201,
+        1212
     ],
     "BLUR_MENU": [
-        979,
-        1680
+        656,
+        1087
     ],
     "BLUR_BAR_MIDDLE": [
-        530,
-        2524
+        361,
+        1109
     ],
     "BLUR_STEP": [
-        137
+        50
     ],
     "ZOOM_1": [
-        639,
-        1681
+        328,
+        1088
     ],
-    "ZOOM_.5": [
-        541,
-        1681
+    "ZOOM_2": [
+        392,
+        1088
     ]
 }
 ```
