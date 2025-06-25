@@ -1,9 +1,7 @@
 from rich.console import Console
 from typer import Context, Exit, Option, Typer
 
-from camera_mapper import __version__
-from camera_mapper.fsm.fsm import CameraMapperFSM
-from camera_mapper.fsm.model import CameraMapperModel
+from camera_mapper import __version__, CameraMapper
 
 app = Typer(add_completion=False)
 console = Console()
@@ -34,7 +32,4 @@ def camapper(
         return
 
     console.print(message)
-    model = CameraMapperModel(device_ip)
-    fsm = CameraMapperFSM(model)
-    while not (fsm.is_finished() or fsm.is_general_error()):
-        fsm.next_state()
+    CameraMapper(device_ip).map()
