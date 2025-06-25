@@ -15,6 +15,7 @@ import numpy as np
 from camera_mapper.constants import (
     ASPECT_RATIO_MENU_NAMES,
     CAPTURE_NAMES,
+    DEFAULT_BLUR_STEP,
     FLASH_MENU_NAMES,
     OBJECTS_OF_INTEREST,
     PATH_TO_TMP_FOLDER,
@@ -544,6 +545,9 @@ class CameraMapperModel:
             if self.__blur_button_idx in [1, 2, 3]:
                 self.mapping_elements["BLUR_BAR_MIDDLE"] = get_middle_blur_circle_bar(
                     image
+                )
+                self.mapping_elements["BLUR_STEP"] = np.array(
+                    [DEFAULT_BLUR_STEP], dtype=np.int32
                 )
             else:
                 blur_seekbar = get_blur_seekbar(image)
