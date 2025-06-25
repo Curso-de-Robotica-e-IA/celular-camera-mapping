@@ -335,7 +335,7 @@ def get_middle_blur_circle_bar(image: cv2.typing.MatLike) -> np.ndarray:
     edges = cv2.Canny(mask, 50, 150, apertureSize=3)
 
     # extract lines of the edges
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, None, 50, 10)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 15, 50, 3)
 
     # Get line with the maximum length
     if lines is not None:
