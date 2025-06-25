@@ -95,6 +95,8 @@ class CameraMapperModel:
             Exception: If an error has been stored, it raises that error.
         """
         print(self.__error)
+        if self.device.actions is not None:
+            self.device.actions.camera.close()
         if self.__error is not None:
             raise self.__error
 
@@ -523,7 +525,7 @@ class CameraMapperModel:
         if self.__blur_button_idx < 0:
             self.__error = ValueError("Blur menu not found in the image.")
             return
-        blur_centroid = bounds.mean(axis=0).astype(np.int32)
+        blur_centroid = np.mean(bounds, axis=0).astype(int)
         self.mapping_elements["BLUR_MENU"] = blur_centroid
 
     def map_blur_bar(self) -> None:
@@ -539,7 +541,7 @@ class CameraMapperModel:
             image = load_image(
                 PATH_TO_TMP_FOLDER.joinpath(f"original_{self.state}.png")
             )
-            if self.__blur_button_idx in [0, 1, 2]:
+            if self.__blur_button_idx in [1, 2, 3]:
                 self.mapping_elements["BLUR_BAR_MIDDLE"] = get_middle_blur_circle_bar(
                     image
                 )
@@ -550,13 +552,15 @@ class CameraMapperModel:
                     return
                 self.mapping_elements["BLUR_BAR_MIDDLE"] = np.array(
                     [
-                        [blur_seekbar["x1"], blur_seekbar["y1"]],
-                        [blur_seekbar["x2"], blur_seekbar["y2"]],
+                        blur_seekbar["x1"] + blur_seekbar["x2"] // 2,
+                        blur_seekbar["y1"] + blur_seekbar["y2"] // 2,
                     ],
                     dtype=np.int32,
                 )
                 limits = (blur_seekbar["x1"], blur_seekbar["x2"])
-                self.mapping_elements["BLUR_STEP"] = (limits[1] - limits[0]) // 5
+                self.mapping_elements["BLUR_STEP"] = np.array(
+                    [(limits[1] - limits[0]) // 5], dtype=np.int32
+                )
 
     # endregion: Portrait Mode
 

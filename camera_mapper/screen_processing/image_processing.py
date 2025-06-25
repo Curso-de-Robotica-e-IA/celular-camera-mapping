@@ -307,7 +307,8 @@ def search_for_patterns(
     """
     for i, pattern in enumerate(patterns):
         w, h = pattern.shape[::-1]
-        res = cv2.matchTemplate(image[:, :, 0], pattern, cv2.TM_CCOEFF_NORMED)
+        _, image_threshed = cv2.threshold(image[:, :, 0], 200, 255, cv2.THRESH_BINARY)
+        res = cv2.matchTemplate(image_threshed, pattern, cv2.TM_CCOEFF_NORMED)
         threshold = 0.8
         loc = np.where(res >= threshold)
         if np.any(loc):
@@ -366,10 +367,13 @@ def get_blur_seekbar(image: cv2.typing.MatLike) -> Line:
     Returns:
         Line: The coordinates of the blur seek bar.
     """
-    lower_to_bar = np.array([75, 60, 40])
-    upper_to_bar = np.array([85, 70, 50])
-    mask_to_bar = cv2.inRange(image, lower_to_bar, upper_to_bar)
-    edges = cv2.Canny(mask_to_bar, 50, 150, apertureSize=3)
+    max_y, min_y = int(image.shape[0] * 0.75), int(image.shape[0] * 0.65)
+    roi = image[min_y:max_y]
+    lab_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2Lab)
+    _, lab_roi[:, :, -1] = cv2.threshold(
+        lab_roi[:, :, -1], 120, 255, cv2.THRESH_BINARY_INV
+    )
+    edges = cv2.Canny(lab_roi, 50, 150, apertureSize=3)
 
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, None, 50, 10)
     longest_line = Line(x1=-1, y1=-1, x2=-1, y2=-1)
@@ -381,5 +385,5 @@ def get_blur_seekbar(image: cv2.typing.MatLike) -> Line:
             length = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
             if length > max_length:
                 max_length = length
-                longest_line = Line(x1=x1, y1=y1, x2=x2, y2=y2)
+                longest_line = Line(x1=x1, y1=y1 + min_y, x2=x2, y2=y2 + min_y)
     return longest_line
