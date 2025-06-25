@@ -25,6 +25,12 @@ def camapper(
         "-i",
         help="Device IP address (e.g., 127.0.0.1:5555)",
     ),
+    device_hardware_version: str = Option(
+        "1.0.0",
+        "--hardware-version",
+        "-hv",
+        help="Device hardware version (e.g., 1.0.0)",
+    ),
 ) -> None:
     message = "Welcome to [bold blue]Camera Mapper[/bold blue], the CLI to map icons of your camera app Android Device."
     """Camera Mapper CLI."""
@@ -32,4 +38,4 @@ def camapper(
         return
 
     console.print(message)
-    CameraMapper(device_ip).map()
+    CameraMapper(device_ip, device_hardware_version).map()

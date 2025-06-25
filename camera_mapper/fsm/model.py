@@ -40,7 +40,7 @@ from camera_mapper.utils import create_or_replace_dir
 
 
 class CameraMapperModel:
-    def __init__(self, ip) -> None:
+    def __init__(self, ip: str, hardware_version: str = "1.0.0") -> None:
         """
         Initializes the CameraMapper class with the IP address of the device
 
@@ -49,6 +49,7 @@ class CameraMapperModel:
         """
 
         self.__ip = ip
+        self.__hardware_version = hardware_version
         self.console = Console()
         self.device = Device()
         self.__camera_app_open_attempts = 0
@@ -84,7 +85,8 @@ class CameraMapperModel:
             "PORTRAIT_MODE": None,
             "BLUR_MENU": None,
             "BLUR_BAR_MIDDLE": None,
-            "BLUR_STEP": None,
+            "BLUR_BAR_BEFORE": None,
+            "BLUR_BAR_NEXT": None,
         }
         self.state = "IDLE"
 
@@ -131,9 +133,7 @@ class CameraMapperModel:
         if model_property is None:
             self.__error = ValueError("Device model property is not available.")
             return
-        self.mapping_elements["HARDWARE_VERSION"] = self.device.properties.get(
-            "hardware_version", "Unknown"
-        )
+        self.mapping_elements["HARDWARE_VERSION"] = self.__hardware_version
         self.mapping_elements["SOFTWARE_VERSION"] = self.device.properties.get(
             "software_version", "Unknown"
         )
@@ -568,9 +568,14 @@ class CameraMapperModel:
                 if self.mapping_elements["BLUR_BAR_MIDDLE"].size == 0:
                     self.__error = ValueError("Blur bar middle not found in the image.")
                     return
-                self.mapping_elements["BLUR_STEP"] = np.array(
-                    [DEFAULT_BLUR_STEP], dtype=np.int32
-                )
+                self.mapping_elements["BLUR_BAR_BEFORE"] = self.mapping_elements[
+                    "BLUR_BAR_MIDDLE"
+                ].copy()
+                self.mapping_elements["BLUR_BAR_NEXT"] = self.mapping_elements[
+                    "BLUR_BAR_MIDDLE"
+                ].copy()
+                self.mapping_elements["BLUR_BAR_BEFORE"][0] -= DEFAULT_BLUR_STEP
+                self.mapping_elements["BLUR_BAR_NEXT"][0] += DEFAULT_BLUR_STEP
             else:
                 blur_seekbar = get_blur_seekbar(image)
                 if blur_seekbar.get("x1") == -1:
@@ -583,9 +588,11 @@ class CameraMapperModel:
                     ],
                     dtype=np.int32,
                 )
-                limits = (blur_seekbar["x1"], blur_seekbar["x2"])
-                self.mapping_elements["BLUR_STEP"] = np.array(
-                    [(limits[1] - limits[0]) // 5], dtype=np.int32
+                self.mapping_elements["BLUR_BAR_BEFORE"] = np.array(
+                    [blur_seekbar["x1"], blur_seekbar["y1"]], dtype=np.int32
+                )
+                self.mapping_elements["BLUR_BAR_NEXT"] = np.array(
+                    [blur_seekbar["x2"], blur_seekbar["y2"]], dtype=np.int32
                 )
 
     # endregion: Portrait Mode

@@ -8,7 +8,6 @@ from device_manager.manager_singleton import DeviceManagerSingleton as DeviceMan
 
 
 class MapperProperties(DeviceProperties, TypedDict, total=False):
-    hardware_version: Optional[str]
     software_version: Optional[str]
     brand: Optional[str]
     model: Optional[str]
@@ -35,7 +34,7 @@ class Device:
         self.info: Optional[DeviceInfo] = None
         self.actions: Optional[DeviceActions] = None
 
-    def connect_device(self, ip: str, hardware_version: str = "1.0.0") -> None:
+    def connect_device(self, ip: str) -> None:
         """
         Connects to an Android device via ADB using the given IP and port.
 
@@ -55,7 +54,7 @@ class Device:
                 )
             self.info = self.manager.get_device_info(matched_device)
             self.actions = self.manager.get_device_actions(matched_device)
-            self.properties = self.get_properties(hardware_version)
+            self.properties = self.get_properties()
         except IndexError:
             raise ValueError(
                 f"Device with IP: {ip} not found. Please check the IP and port."
@@ -99,7 +98,7 @@ class Device:
         with open(xml_file_path, "w", encoding="utf-8") as file:
             file.write(xml_info)
 
-    def get_properties(self, hardware_version: str) -> MapperProperties:
+    def get_properties(self) -> MapperProperties:
         """
         Retrieves the device properties such as hardware version, width, and camera version.
 
@@ -117,7 +116,6 @@ class Device:
         camera_package = self.info.app(package=package_name)
         camera_version = camera_package.get_property("versionName")
         return MapperProperties(
-            hardware_version=hardware_version,
             software_version=manager_properties.get("android_version"),
             brand=manager_properties.get("brand"),
             model=manager_properties.get("model"),

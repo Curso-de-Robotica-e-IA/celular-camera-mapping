@@ -14,17 +14,17 @@ Camera Mapper is a general-purpose Android camera app mapper designed to automat
 ## CLI Usage
 
 ```sh
-camapper -i [ANDROID-DEVICE-IP]
+camapper -i [ANDROID-DEVICE-IP] -hv [DEVICE-HARDWARE-VERSION]
 ```
 
-Replace `[ANDROID-DEVICE-IP]` with your device's actual IP address.
+Replace `[ANDROID-DEVICE-IP]` and `[DEVICE-HARDWARE-VERSION]` with your device's actual IP address and Hardware version.
 
 ## API Usage
 
 ```python
 from camera_mapper import CameraMapper
 
-mapper = CameraMapper(device_ip="192.168.1.100")
+mapper = CameraMapper(device_ip="192.168.1.100", device_hardware_version="1.0.0")
 mapper.map()
 ```
 
@@ -100,8 +100,13 @@ mapper.map()
         361,
         1109
     ],
-    "BLUR_STEP": [
-        50
+    "BLUR_BAR_BEFORE": [
+        311,
+        1109
+    ],
+    "BLUR_BAR_NEXT": [
+        411,
+        1109
     ],
     "ZOOM_1": [
         328,
