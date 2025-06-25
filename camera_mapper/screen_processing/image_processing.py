@@ -1,10 +1,17 @@
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TypedDict
 
 import cv2
 import numpy as np
 
 from camera_mapper.constants import CLUSTER_THRESHOLD
+
+
+class Line(TypedDict):
+    x1: int
+    y1: int
+    x2: int
+    y2: int
 
 
 def load_image(image_path: Path) -> cv2.typing.MatLike:
@@ -277,7 +284,7 @@ def blur_patterns() -> List[cv2.typing.MatLike]:
         List[cv2.typing.MatLike]: The list of the image patterns of blur button.
     """
     patterns = []
-    for i in range(3):
+    for i in range(4):
         pattern_path = Path(__file__).parent / "blur_buttons" / f"pattern_{i}.png"
         pattern = load_image(pattern_path)[:, :, 0]
         _, pattern = cv2.threshold(pattern, 200, 255, cv2.THRESH_BINARY)
@@ -285,18 +292,18 @@ def blur_patterns() -> List[cv2.typing.MatLike]:
     return patterns
 
 
-def search_for_blur_button(
+def search_for_patterns(
     image: cv2.typing.MatLike, patterns: List[cv2.typing.MatLike]
 ) -> Tuple[np.ndarray, int]:
     """
-    Search for the blur button in the image using template matching.
+    Search for the patterns in the image using template matching.
 
     Args:
         image (cv2.typing.MatLike): The input image.
         patterns (List[cv2.typing.MatLike]): The list of patterns to search for.
 
     Returns:
-        Tuple[np.ndarray, int]: The bounding box of the blur button and its index if found, otherwise (-1, -1).
+        Tuple[np.ndarray, int]: The bounding box of the patterns and its index if found, otherwise (-1, -1).
     """
     for i, pattern in enumerate(patterns):
         w, h = pattern.shape[::-1]
@@ -347,3 +354,32 @@ def get_middle_blur_circle_bar(image: cv2.typing.MatLike) -> np.ndarray:
         mid_point = np.array(mid_point, dtype=np.int32)
         return mid_point
     return np.array([])
+
+
+def get_blur_seekbar(image: cv2.typing.MatLike) -> Line:
+    """
+    Extracts the blur seek bar from the given image.
+
+    Args:
+        image (cv2.typing.MatLike): Input image with a blur seek bar.
+
+    Returns:
+        Line: The coordinates of the blur seek bar.
+    """
+    lower_to_bar = np.array([75, 60, 40])
+    upper_to_bar = np.array([85, 70, 50])
+    mask_to_bar = cv2.inRange(image, lower_to_bar, upper_to_bar)
+    edges = cv2.Canny(mask_to_bar, 50, 150, apertureSize=3)
+
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, None, 50, 10)
+    longest_line = Line(x1=-1, y1=-1, x2=-1, y2=-1)
+    if lines is not None:
+        max_length = 0
+        longest_line = lines[0][0]
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            length = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+            if length > max_length:
+                max_length = length
+                longest_line = Line(x1=x1, y1=y1, x2=x2, y2=y2)
+    return longest_line

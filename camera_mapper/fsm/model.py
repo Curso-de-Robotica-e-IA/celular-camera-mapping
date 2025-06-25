@@ -14,10 +14,8 @@ import numpy as np
 
 from camera_mapper.constants import (
     ASPECT_RATIO_MENU_NAMES,
-    CAMERA,
     CAPTURE_NAMES,
     FLASH_MENU_NAMES,
-    MODE,
     OBJECTS_OF_INTEREST,
     PATH_TO_TMP_FOLDER,
     QUICK_CONTROL_NAMES,
@@ -27,9 +25,10 @@ from camera_mapper.device import Device
 from camera_mapper.screen_processing.image_processing import (
     blur_patterns,
     draw_clickable_elements,
+    get_blur_seekbar,
     get_middle_blur_circle_bar,
     load_image,
-    search_for_blur_button,
+    search_for_patterns,
 )
 from camera_mapper.screen_processing.xml_processing import (
     clickable_elements,
@@ -77,6 +76,7 @@ class CameraMapperModel:
             "PORTRAIT_MODE": None,
             "BLUR_MENU": None,
             "BLUR_BAR_MIDDLE": None,
+            "BLUR_STEP": None,
         }
         self.state = "IDLE"
 
@@ -187,7 +187,7 @@ class CameraMapperModel:
         """
         Captures the current screen of the device and saves it to a temporary folder.
         """
-        self.device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=f"{CAMERA}_{MODE}")
+        self.device.screen_shot(path=PATH_TO_TMP_FOLDER, tag=f"{self.state}")
         self.device.save_screen_gui_xml(path=PATH_TO_TMP_FOLDER)
 
     def process_screen_gui_xml(
@@ -249,7 +249,7 @@ class CameraMapperModel:
                                    and values are their bounds after applying OCR.
         """
         ocred = {}
-        path = str(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
+        path = str(PATH_TO_TMP_FOLDER.joinpath(f"original_{self.state}.png"))
         img_doc = DocumentFile.from_images(path)
         result = self.ocr(img_doc)
 
@@ -297,7 +297,7 @@ class CameraMapperModel:
         """
         try:
             image = load_image(
-                PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
+                PATH_TO_TMP_FOLDER.joinpath(f"original_{self.state}.png")
             )
             xml_tree = ElementTree(
                 file=PATH_TO_TMP_FOLDER.joinpath("device_screen_gui.xml")
@@ -517,9 +517,9 @@ class CameraMapperModel:
         Maps the blur menu in portrait mode by searching for it in the captured image.
         """
         self.capture_screen()
-        image = load_image(PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png"))
+        image = load_image(PATH_TO_TMP_FOLDER.joinpath(f"original_{self.state}.png"))
         patterns = blur_patterns()
-        bounds, self.__blur_button_idx = search_for_blur_button(image, patterns)
+        bounds, self.__blur_button_idx = search_for_patterns(image, patterns)
         if self.__blur_button_idx < 0:
             self.__error = ValueError("Blur menu not found in the image.")
             return
@@ -536,13 +536,27 @@ class CameraMapperModel:
             )
             time.sleep(2)
             self.capture_screen()
+            image = load_image(
+                PATH_TO_TMP_FOLDER.joinpath(f"original_{self.state}.png")
+            )
             if self.__blur_button_idx in [0, 1, 2]:
-                image = load_image(
-                    PATH_TO_TMP_FOLDER.joinpath(f"original_{CAMERA}_{MODE}.png")
-                )
                 self.mapping_elements["BLUR_BAR_MIDDLE"] = get_middle_blur_circle_bar(
                     image
                 )
+            else:
+                blur_seekbar = get_blur_seekbar(image)
+                if blur_seekbar.get("x1") == -1:
+                    self.__error = ValueError("Blur seekbar not found in the image.")
+                    return
+                self.mapping_elements["BLUR_BAR_MIDDLE"] = np.array(
+                    [
+                        [blur_seekbar["x1"], blur_seekbar["y1"]],
+                        [blur_seekbar["x2"], blur_seekbar["y2"]],
+                    ],
+                    dtype=np.int32,
+                )
+                limits = (blur_seekbar["x1"], blur_seekbar["x2"])
+                self.mapping_elements["BLUR_STEP"] = (limits[1] - limits[0]) // 5
 
     # endregion: Portrait Mode
 
