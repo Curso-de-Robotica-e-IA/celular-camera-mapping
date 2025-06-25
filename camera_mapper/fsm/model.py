@@ -1,4 +1,5 @@
 import json
+import shutil
 import time
 
 from doctr.models import ocr_predictor
@@ -438,6 +439,7 @@ class CameraMapperModel:
                     self.mapping_elements[
                         f"ASPECT_RATIO_{name_kind.replace(':', '_')}"
                     ] = centroid
+                    continue
         self.device.actions.click_by_coordinates(*self.mapping_elements["TOUCH"])  # type: ignore
         time.sleep(0.5)
 
@@ -537,7 +539,7 @@ class CameraMapperModel:
             self.device.actions.click_by_coordinates(
                 *self.mapping_elements["BLUR_MENU"]
             )
-            time.sleep(2)
+            time.sleep(1)
             self.capture_screen()
             image = load_image(
                 PATH_TO_TMP_FOLDER.joinpath(f"original_{self.state}.png")
@@ -546,6 +548,9 @@ class CameraMapperModel:
                 self.mapping_elements["BLUR_BAR_MIDDLE"] = get_middle_blur_circle_bar(
                     image
                 )
+                if self.mapping_elements["BLUR_BAR_MIDDLE"].size == 0:
+                    self.__error = ValueError("Blur bar middle not found in the image.")
+                    return
                 self.mapping_elements["BLUR_STEP"] = np.array(
                     [DEFAULT_BLUR_STEP], dtype=np.int32
                 )
@@ -612,8 +617,9 @@ class CameraMapperModel:
         with open(full_path, "w") as f:
             json.dump(to_save, f)
         self.console.print(f"Mapping saved to {full_path}")
+        self.device.actions.camera.close()
+        shutil.rmtree(PATH_TO_TMP_FOLDER, ignore_errors=True)
 
     # endregion: Save mapping
     def success_message(self):
-        self.device.actions.camera.close()
         self.console.print("Device mapping completed successfully!")
