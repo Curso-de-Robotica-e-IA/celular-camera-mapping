@@ -1,7 +1,5 @@
-import shutil
 import time
 from pathlib import Path
-from threading import Thread
 from typing import Optional, TypedDict
 
 from device_manager import DeviceActions, DeviceInfo
@@ -26,7 +24,6 @@ class Device:
     recording the screen, taking screenshots, and interacting with the device.
     """
 
-    DEVICE_VIDEO_PATH = "/sdcard/video.mp4"
     DEVICE_SCREENCAP_PATH = "/sdcard/DCIM/Camera/screencap.png"
 
     def __init__(self) -> None:
@@ -63,57 +60,6 @@ class Device:
             raise ValueError(
                 f"Device with IP: {ip} not found. Please check the IP and port."
             )
-
-    def __record_command_terminal(
-        self, manager: DeviceManager, record_time_s: float
-    ) -> None:
-        """
-        Internal method to execute records the device screen for the specified duration and saves the video to the device.
-
-        Args:
-            record_time_s (float): The duration of the video recording in seconds.
-        """
-        manager.execute_adb_command(
-            command=f"screenrecord {self.DEVICE_VIDEO_PATH} --time-limit={record_time_s}",
-            shell=True,
-        )
-
-    def start_record_in_device(self, record_time_s: float) -> None:
-        """
-        Starts screen recording on the device asynchronously using a separate thread.
-
-        Args:
-            record_time_s (float): The duration of the video recording in seconds.
-        """
-        obj = Thread(target=self.__record_command_terminal, args=[record_time_s])
-        obj.start()
-
-    def get_video_in_device(self, base_path: Path, folder_name: str) -> None:
-        """
-        Pulls the recorded video file from the device and saves it to the specified folder on the local system.
-
-        Args:
-            base_path (Path): The base directory path on the local system.
-            folder_name (str): The folder name where the video will be saved.
-        """
-
-        full_path = base_path.joinpath(folder_name)
-
-        if full_path.exists():
-            shutil.rmtree(full_path)
-
-        full_path.mkdir()
-        self.manager.execute_adb_command(
-            command=f"pull {self.DEVICE_VIDEO_PATH} {str(full_path)}"
-        )
-
-    def delete_video_in_device(self) -> None:
-        """
-        Deletes the recorded video file from the device.
-        """
-        self.manager.execute_adb_command(
-            command=f"rm {self.DEVICE_VIDEO_PATH}", shell=True
-        )
 
     def screen_shot(self, path: Path, tag: str) -> None:
         """
