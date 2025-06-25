@@ -1,6 +1,6 @@
 [project]
 name = "camera-mapper"
-version = "1.0.0"
+version = "1.0.1"
 description = "CLI to map the camera app from different android devices"
 authors = [
     {name = "goncamateus",email = "mateus.gm@gmail.com"}
