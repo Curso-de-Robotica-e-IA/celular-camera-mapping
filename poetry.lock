@@ -473,13 +473,13 @@ packaging = "*"
 
 [[package]]
 name = "device_manager"
-version = "1.4.1"
+version = "1.4.2"
 description = ""
 optional = false
 python-versions = ">=3.10, <3.14"
 groups = ["main"]
 files = [
-    {file = "device_manager-1.4.1-py3-none-any.whl", hash = "sha256:7d04360ac786eee3654f029ea801e56ce644d742e6c5088cf5138d41d6f67baa"},
+    {file = "device_manager-1.4.2-py3-none-any.whl", hash = "sha256:9d7344d6e8afc03a9df75fcbcc7d8f36a8a01a91177e41b5495bd835530ff0bb"},
 ]
 
 [package.dependencies]
@@ -492,7 +492,7 @@ zeroconf = ">=0.140.1"
 
 [package.source]
 type = "url"
-url = "https://github.com/Curso-de-Robotica-e-IA/device_manager/releases/download/v1.4.1/device_manager-1.4.1-py3-none-any.whl"
+url = "https://github.com/Curso-de-Robotica-e-IA/device_manager/releases/download/v1.4.2/device_manager-1.4.2-py3-none-any.whl"
 
 [[package]]
 name = "executing"
@@ -3206,4 +3206,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "0cfd888d75899203d18861ed4be3b114b0e2eed145683c769276c6edca252f73"
+content-hash = "2fd750552f8240ce8f9bc43cbb330f5a504aa3efc82f5bfaaa347bdc4a046a64"
