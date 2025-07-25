@@ -1,7 +1,7 @@
 from rich.console import Console
 from typer import Context, Exit, Option, Typer
 
-from camera_mapper import __version__, CameraMapper
+from camera_mapper import CameraMapper, __version__
 
 app = Typer(add_completion=False)
 console = Console()
@@ -25,6 +25,12 @@ def camapper(
         "-i",
         help="Device IP address (e.g., 127.0.0.1:5555)",
     ),
+    destiny_path: str = Option(
+        "",
+        "--destiny-path",
+        "-dp",
+        help="Destiny path (e.g., dev/ttyACM0/)",
+    ),
     device_hardware_version: str = Option(
         "1.0.0",
         "--hardware-version",
@@ -38,4 +44,4 @@ def camapper(
         return
 
     console.print(message)
-    CameraMapper(device_ip, device_hardware_version).map()
+    CameraMapper(device_ip, destiny_path, device_hardware_version).map()
