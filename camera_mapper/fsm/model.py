@@ -51,7 +51,7 @@ class CameraMapperModel:
 
         self.__ip = ip
         self.__hardware_version = hardware_version
-        self.__destiny_path = destiny_path
+        self.__destiny_path = Path(destiny_path).resolve()
         self.console = Console()
         self.device = Device()
         self.__camera_app_open_attempts = 0
@@ -638,8 +638,8 @@ class CameraMapperModel:
             .replace("-", "_")
             .upper()
         )
-        out_name = f"{self.__destiny_path}{brand}-{model}-mapping.json"
-        full_path = Path().joinpath(out_name)
+        out_name = f"{brand}-{model}-mapping.json"
+        full_path = self.__destiny_path.joinpath(out_name)
         with open(full_path, "w") as f:
             json.dump(to_save, f)
         self.console.print(f"Mapping saved to {full_path}")
