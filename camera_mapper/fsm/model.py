@@ -1,17 +1,15 @@
 import json
 import shutil
 import time
-
-from doctr.models import ocr_predictor
-from doctr.io import DocumentFile
-
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from xml.etree.ElementTree import ElementTree
-from rich.console import Console
 
 import cv2
 import numpy as np
+from doctr.io import DocumentFile
+from doctr.models import ocr_predictor
+from rich.console import Console
 
 from camera_mapper.constants import (
     ASPECT_RATIO_MENU_NAMES,
@@ -40,16 +38,20 @@ from camera_mapper.utils import create_or_replace_dir
 
 
 class CameraMapperModel:
-    def __init__(self, ip: str, hardware_version: str = "1.0.0") -> None:
+    def __init__(
+        self, ip: str, destiny_path: str, hardware_version: str = "1.0.0"
+    ) -> None:
         """
         Initializes the CameraMapper class with the IP address of the device
 
         Args:
             ip (str): The IP address of the device.
+            destiny_path(str): The path to the destiny folder.
         """
 
         self.__ip = ip
         self.__hardware_version = hardware_version
+        self.__destiny_path = Path(destiny_path).resolve()
         self.console = Console()
         self.device = Device()
         self.__camera_app_open_attempts = 0
@@ -637,7 +639,7 @@ class CameraMapperModel:
             .upper()
         )
         out_name = f"{brand}-{model}-mapping.json"
-        full_path = Path().joinpath(out_name)
+        full_path = self.__destiny_path.joinpath(out_name)
         with open(full_path, "w") as f:
             json.dump(to_save, f)
         self.console.print(f"Mapping saved to {full_path}")
