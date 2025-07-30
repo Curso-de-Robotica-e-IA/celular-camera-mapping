@@ -62,6 +62,7 @@ class CameraMapperModel:
         self.xml_portrait: Dict[str, np.ndarray] = {}
         self.image_clickables: Dict[str, np.ndarray] = {}
         self.ocr = ocr_predictor(pretrained=True)
+        self.path = None
         self.mapping_elements: Dict[str, Optional[np.ndarray]] = {
             # Device properties
             "HARDWARE_VERSION": None,
@@ -642,6 +643,7 @@ class CameraMapperModel:
         full_path = self.__destiny_path.joinpath(out_name)
         with open(full_path, "w") as f:
             json.dump(to_save, f)
+        self.path = out_name
         self.console.print(f"Mapping saved to {full_path}")
         self.device.actions.camera.close()
         shutil.rmtree(PATH_TO_TMP_FOLDER, ignore_errors=True)
