@@ -28,3 +28,5 @@ class CameraMapper:
         """
         while not (self.fsm.is_finished() or self.fsm.is_general_error()):
             self.fsm.next_state()
+
+        return self.model.path
