@@ -22,9 +22,12 @@ class CameraMapper:
         )
         self.fsm = CameraMapperFSM(self.model)
 
-    def map(self):
+    def map(self) -> str:
         """
         Starts the process to map the camera on the connected device and writes json arquive on destiny path folder.
+
+        Returns:
+            name_json (str): Name of archive json created on destiny path folder.
         """
         while not (self.fsm.is_finished() or self.fsm.is_general_error()):
             self.fsm.next_state()
